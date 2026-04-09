@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Academy — 대학공부</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyBC_aeuuKXoJIodrmfeQ52bvWpzcZMrtPM",
+      authDomain: "mind-os-b23a5.firebaseapp.com",
+      projectId: "mind-os-b23a5",
+      storageBucket: "mind-os-b23a5.firebasestorage.app",
+      messagingSenderId: "88544003760",
+      appId: "1:88544003760:web:58af8d47183d2e259d9d75"
+    });
+    const db = firebase.firestore();
+  </script>
+
+  <style>
+    /* ── 기본 리셋 ── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      /* 밝기 올린 보라 그라디언트 — 기존보다 20~30% 더 밝은 보라 톤 */
+      background: linear-gradient(135deg, #1c1845, #463d8a, #332e62);
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    /* ── 배경 blob ── */
+    .bg-blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      /* opacity 0.15 → 0.28로 올려서 색감이 더 선명하게 보이도록 */
+      opacity: 0.28;
+      pointer-events: none;
+      z-index: 0;
+      animation: blobFloat 8s ease-in-out infinite;
+    }
+    .bg-blob.b1 { width:500px; height:500px; background:#7c3aed; top:-100px; left:-100px; }
+    .bg-blob.b2 { width:400px; height:400px; background:#3b82f6; bottom:-80px; right:-80px; animation-delay:3s; }
+    @keyframes blobFloat {
+      0%,100% { transform: translateY(0) scale(1); }
+      50%      { transform: translateY(-20px) scale(1.05); }
+    }
+
+    /* ── 헤더 ── */
+    .header {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; gap: 16px;
+      padding: 28px 40px 0;
+    }
+    .back-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      color: rgba(255,255,255,0.7);
+      font-family: 'DM Sans', sans-serif; font-size: 14px;
+      cursor: pointer; text-decoration: none;
+      transition: all 0.2s;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .page-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 600; }
+    .page-title span {
+      background: linear-gradient(90deg, #818cf8, #c084fc);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    /* ── 메인 레이아웃 ── */
+    .main-layout {
+      position: relative; z-index: 10;
+      display: flex; gap: 24px;
+      padding: 32px 40px;
+      min-height: calc(100vh - 100px);
+    }
+
+    /* ══════════════════════════════
+       왼쪽 패널: 학기 목록
+    ══════════════════════════════ */
+    .semester-panel { width: 230px; flex-shrink: 0; }
+    .semester-panel-title {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: rgba(255,255,255,0.4); margin-bottom: 14px;
+    }
+    .semester-list { display: flex; flex-direction: column; gap: 8px; }
+
+    /* 개별 학기 아이템 */
+    .semester-item {
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .semester-item:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.18); }
+    .semester-item.active { background: rgba(124,58,237,0.3); border-color: rgba(124,58,237,0.6); }
+
+    /* 학기 이름 — 클릭 가능한 영역 (flex로 늘어남) */
+    .semester-item-main {
+      flex: 1; display: flex; flex-direction: column; gap: 4px;
+      cursor: pointer; min-width: 0; /* 텍스트 넘침 방지 */
+    }
+    .semester-item-name {
+      font-size: 13px; font-weight: 500;
+      color: rgba(255,255,255,0.85);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* 학기 타입 뱃지 */
+    .badge {
+      display: inline-block;
+      font-size: 9px; font-weight: 600;
+      padding: 2px 7px; border-radius: 20px;
+      letter-spacing: 0.5px; width: fit-content;
+    }
+    /* 정기: 파란색 */
+    .badge-regular { background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.4); color: #93c5fd; }
+    /* 계절: 초록색 */
+    .badge-seasonal { background: rgba(52,211,153,0.2); border: 1px solid rgba(52,211,153,0.4); color: #6ee7b7; }
+    /* 휴학: 노란색 */
+    .badge-leave { background: rgba(251,191,36,0.2); border: 1px solid rgba(251,191,36,0.4); color: #fbbf24; }
+
+    /* 순서 변경 & 삭제 버튼 영역 — 호버 시 나타남 */
+    .semester-actions {
+      display: flex; flex-direction: column; gap: 2px;
+      opacity: 0; /* 기본 숨김 */
+      transition: opacity 0.15s;
+    }
+    .semester-item:hover .semester-actions { opacity: 1; } /* 호버 시 보임 */
+
+    .act-btn {
+      width: 22px; height: 22px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: rgba(255,255,255,0.5);
+      font-size: 10px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .act-btn:hover { background: rgba(255,255,255,0.18); color: #fff; }
+    /* 삭제 버튼은 빨간색 */
+    .act-btn.del:hover { background: rgba(239,68,68,0.3); border-color: rgba(239,68,68,0.5); color: #fca5a5; }
+
+    /* 학기 추가 버튼 */
+    .semester-add-btn {
+      margin-top: 12px; padding: 10px 16px;
+      background: transparent;
+      border: 1px dashed rgba(255,255,255,0.2);
+      border-radius: 12px; color: rgba(255,255,255,0.4);
+      font-family: 'DM Sans', sans-serif; font-size: 13px;
+      cursor: pointer; width: 100%; text-align: left;
+      transition: all 0.2s;
+    }
+    .semester-add-btn:hover { border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.7); }
+
+    /* ══════════════════════════════
+       오른쪽: 과목 카드 영역
+    ══════════════════════════════ */
+    .content-area { flex: 1; }
+
+    .selected-semester-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px; font-weight: 600;
+      color: rgba(255,255,255,0.9); margin-bottom: 8px;
+    }
+    .selected-semester-sub {
+      font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 28px;
+    }
+
+    /* 과목 카드 그리드 */
+    .subject-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    /* 개별 과목 카드 */
+    .subject-card {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px; padding: 28px 24px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      position: relative; overflow: hidden;
+      backdrop-filter: blur(12px);
+    }
+    .subject-card:hover {
+      transform: translateY(-4px);
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.25);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    /* 카드 상단 컬러 바 */
+    .subject-card::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      border-radius: 20px 20px 0 0;
+    }
+    .subject-card:nth-child(1)::before { background: linear-gradient(90deg, #818cf8, #6366f1); }
+    .subject-card:nth-child(2)::before { background: linear-gradient(90deg, #34d399, #10b981); }
+    .subject-card:nth-child(3)::before { background: linear-gradient(90deg, #f472b6, #ec4899); }
+    .subject-card:nth-child(4)::before { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+    .subject-card:nth-child(5)::before { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+
+    .subject-icon { font-size: 32px; margin-bottom: 16px; }
+    .subject-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 17px; font-weight: 600; color: #fff;
+      margin-bottom: 6px; line-height: 1.4;
+    }
+    .subject-desc { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.5; }
+    .subject-arrow {
+      position: absolute; bottom: 20px; right: 20px;
+      font-size: 18px; color: rgba(255,255,255,0.2);
+      transition: all 0.2s;
+    }
+    .subject-card:hover .subject-arrow { color: rgba(255,255,255,0.6); transform: translateX(4px); }
+
+    /* 학기 미선택 안내 */
+    .empty-state {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 300px; color: rgba(255,255,255,0.3);
+      font-size: 15px; gap: 12px;
+    }
+    .empty-state .empty-icon { font-size: 48px; opacity: 0.5; }
+
+    /* ══════════════════════════════
+       모달 (학기 추가 팝업)
+    ══════════════════════════════ */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .modal-overlay.show { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: #1e1b4b;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px; padding: 32px; width: 360px;
+      transform: scale(0.95);
+      transition: transform 0.2s cubic-bezier(0.4,0,0.2,1);
+    }
+    .modal-overlay.show .modal { transform: scale(1); }
+
+    .modal-title { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 20px; }
+
+    .modal-input {
+      width: 100%; padding: 12px 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px; color: #fff;
+      font-family: 'DM Sans', sans-serif; font-size: 15px;
+      margin-bottom: 16px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .modal-input:focus { border-color: rgba(124,58,237,0.6); }
+    .modal-input::placeholder { color: rgba(255,255,255,0.3); }
+
+    /* 학기 타입 선택 버튼 그룹 */
+    .modal-type-label {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 1px; text-transform: uppercase;
+      color: rgba(255,255,255,0.4); margin-bottom: 10px;
+    }
+    .modal-type-group {
+      display: flex; gap: 8px; margin-bottom: 24px;
+    }
+    /* 타입 선택 버튼 — 3종 */
+    .type-btn {
+      flex: 1; padding: 10px 8px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      color: rgba(255,255,255,0.5);
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+      cursor: pointer; text-align: center;
+      transition: all 0.2s;
+    }
+    /* 선택된 타입 버튼 — 각 색상으로 강조 */
+    .type-btn.selected-regular  { background: rgba(59,130,246,0.25); border-color: rgba(59,130,246,0.6); color: #93c5fd; }
+    .type-btn.selected-seasonal { background: rgba(52,211,153,0.25); border-color: rgba(52,211,153,0.6); color: #6ee7b7; }
+    .type-btn.selected-leave    { background: rgba(251,191,36,0.25); border-color: rgba(251,191,36,0.6); color: #fbbf24; }
+
+    .modal-btns { display: flex; gap: 10px; }
+    .modal-btn {
+      flex: 1; padding: 12px; border-radius: 12px;
+      font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none; transition: all 0.2s;
+    }
+    .modal-btn.cancel { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
+    .modal-btn.cancel:hover { background: rgba(255,255,255,0.14); }
+    .modal-btn.confirm { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; }
+    .modal-btn.confirm:hover { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+  </style>
+</head>
+
+<body>
+  <div class="bg-blob b1"></div>
+  <div class="bg-blob b2"></div>
+
+  <!-- 헤더 -->
+  <header class="header">
+    <a href="academy.html" class="back-btn">← Academy</a>
+    <h1 class="page-title"><span>Academy</span> — 대학공부</h1>
+  </header>
+
+  <!-- 메인 레이아웃 -->
+  <div class="main-layout">
+
+    <!-- 왼쪽: 학기 목록 패널 -->
+    <aside class="semester-panel">
+      <p class="semester-panel-title">학기 목록</p>
+      <div class="semester-list" id="semesterList"></div>
+      <button class="semester-add-btn" onclick="openModal()">+ 학기 추가</button>
+    </aside>
+
+    <!-- 오른쪽: 과목 카드 영역 -->
+    <main class="content-area" id="contentArea">
+      <div class="empty-state">
+        <span class="empty-icon">📚</span>
+        <span>왼쪽에서 학기를 선택하세요</span>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- 학기 추가 모달 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h2 class="modal-title">새 학기 추가</h2>
+
+      <!-- 학기 이름 입력 -->
+      <input class="modal-input" id="semesterNameInput" type="text" placeholder="예: 2028-1학기" />
+
+      <!-- 학기 타입 선택 (정기 / 계절 / 휴학) -->
+      <p class="modal-type-label">학기 종류</p>
+      <div class="modal-type-group">
+        <!-- onclick으로 selectType() 호출, 기본값은 '정기' -->
+        <button class="type-btn selected-regular" id="type-regular"  onclick="selectType('regular')">📚 정기</button>
+        <button class="type-btn"                  id="type-seasonal" onclick="selectType('seasonal')">🌊 계절</button>
+        <button class="type-btn"                  id="type-leave"    onclick="selectType('leave')">🏖️ 휴학</button>
+      </div>
+
+      <div class="modal-btns">
+        <button class="modal-btn cancel" onclick="closeModal()">취소</button>
+        <button class="modal-btn confirm" onclick="addSemester()">추가</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    /* =============================================
+       데이터 관리
+       localStorage 키: mindos_semesters (CLAUDE.md 규칙)
+    ============================================= */
+    const STORAGE_KEY = 'mindos_semesters';
+
+    let state = {
+      semesters: [],
+      selectedId: null,
+    };
+
+    function applyMigration() {
+      state.semesters.forEach(sem => {
+        if (!sem.type) sem.type = sem.isLeave ? 'leave' : 'regular';
+      });
+    }
+
+    function getDefaultState() {
+      return {
+        semesters: [{
+          id: 'fa2627', name: '26/27 FA', type: 'leave',
+          subjects: [
+            { id: 'phys', name: 'Engineering Physics',     icon: '⚛️', desc: '역학, 전자기학, 파동 등 공학 기초 물리' },
+            { id: 'math', name: 'Engineering Mathematics', icon: '📐', desc: '미분방정식, 선형대수, 복소수 등 공학 수학' },
+            { id: 'code', name: 'Coding with C & Python',  icon: '💻', desc: 'C언어와 파이썬으로 배우는 프로그래밍 기초' },
+          ]
+        }],
+        selectedId: null
+      };
+    }
+
+    async function loadData() {
+      try {
+        const snap = await db.collection('mindos').doc('semesters').get();
+        if (snap.exists) {
+          state = snap.data();
+        } else {
+          const local = localStorage.getItem(STORAGE_KEY);
+          state = local ? JSON.parse(local) : getDefaultState();
+          if (!local) await saveData();
+        }
+      } catch(e) {
+        console.error('Firebase 로드 실패, localStorage로 대체:', e);
+        const local = localStorage.getItem(STORAGE_KEY);
+        state = local ? JSON.parse(local) : getDefaultState();
+      }
+      applyMigration();
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      return db.collection('mindos').doc('semesters').set(state).catch(e => console.error('Firebase 저장 실패:', e));
+    }
+
+
+    /* =============================================
+       학기 타입별 뱃지 정보 반환
+       - type에 따라 CSS 클래스명과 표시 텍스트가 달라짐
+    ============================================= */
+    function getTypeBadge(type) {
+      const map = {
+        regular:  { cls: 'badge-regular',  label: '정기' },
+        seasonal: { cls: 'badge-seasonal', label: '계절' },
+        leave:    { cls: 'badge-leave',    label: '휴학' },
+      };
+      return map[type] || map['regular']; // 알 수 없는 타입이면 정기로 처리
+    }
+
+
+    /* =============================================
+       학기 목록 렌더링 (왼쪽 패널)
+    ============================================= */
+    function renderSemesters() {
+      const list = document.getElementById('semesterList');
+      list.innerHTML = '';
+
+      state.semesters.forEach((sem, index) => {
+        const isActive = sem.id === state.selectedId;
+        const badge = getTypeBadge(sem.type);
+        const isFirst = index === 0;
+        const isLast  = index === state.semesters.length - 1;
+
+        const item = document.createElement('div');
+        item.className = 'semester-item' + (isActive ? ' active' : '');
+
+        item.innerHTML = `
+          <!-- 왼쪽: 이름 + 뱃지 (클릭 시 선택) -->
+          <div class="semester-item-main" onclick="selectSemester('${sem.id}')">
+            <span class="semester-item-name">${sem.name}</span>
+            <span class="badge ${badge.cls}">${badge.label}</span>
+          </div>
+
+          <!-- 오른쪽: 순서 변경 + 삭제 버튼 (호버 시 나타남) -->
+          <div class="semester-actions">
+            <!-- ↑ 위로 이동 — 첫 번째 항목은 비활성 -->
+            <button class="act-btn" onclick="moveSemester('${sem.id}', -1)"
+              ${isFirst ? 'disabled style="opacity:0.2;cursor:not-allowed"' : ''}>↑</button>
+            <!-- ↓ 아래로 이동 — 마지막 항목은 비활성 -->
+            <button class="act-btn" onclick="moveSemester('${sem.id}', 1)"
+              ${isLast ? 'disabled style="opacity:0.2;cursor:not-allowed"' : ''}>↓</button>
+            <!-- × 삭제 -->
+            <button class="act-btn del" onclick="deleteSemester('${sem.id}')">×</button>
+          </div>
+        `;
+
+        list.appendChild(item);
+      });
+    }
+
+
+    /* =============================================
+       학기 선택 → 오른쪽에 과목 카드 표시
+    ============================================= */
+    function selectSemester(id) {
+      state.selectedId = id;
+      saveData();
+      renderSemesters();
+      renderSubjects();
+    }
+
+    function renderSubjects() {
+      const area = document.getElementById('contentArea');
+      const sem  = state.semesters.find(s => s.id === state.selectedId);
+
+      if (!sem) {
+        area.innerHTML = `
+          <div class="empty-state">
+            <span class="empty-icon">📚</span>
+            <span>왼쪽에서 학기를 선택하세요</span>
+          </div>`;
+        return;
+      }
+
+      // 타입별 이모지
+      const typeEmoji = { regular: '📅', seasonal: '🌊', leave: '🏖️' };
+      const emoji = typeEmoji[sem.type] || '📅';
+
+      area.innerHTML = `
+        <h2 class="selected-semester-title">${sem.name}</h2>
+        <p class="selected-semester-sub">${emoji} ${getTypeBadge(sem.type).label} 학기 — 과목 ${sem.subjects.length}개</p>
+        <div class="subject-grid" id="subjectGrid"></div>
+      `;
+
+      const grid = document.getElementById('subjectGrid');
+      sem.subjects.forEach(sub => {
+        const card = document.createElement('div');
+        card.className = 'subject-card';
+        card.onclick = () => openSubject(sub.id);
+        card.innerHTML = `
+          <div class="subject-icon">${sub.icon}</div>
+          <div class="subject-name">${sub.name}</div>
+          <div class="subject-desc">${sub.desc}</div>
+          <span class="subject-arrow">→</span>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+
+    /* =============================================
+       과목 카드 클릭 (나중에 연결 예정)
+    ============================================= */
+    function openSubject(subjectId) {
+      // subject.html로 이동 — URL 파라미터로 과목ID와 학기ID를 넘겨줌
+      location.href = `subject.html?sub=${subjectId}&sem=${state.selectedId}`;
+    }
+
+
+    /* =============================================
+       학기 순서 변경
+       direction: -1(위로) or +1(아래로)
+       - 배열에서 현재 위치와 인접 항목을 swap(교체)하는 방식
+    ============================================= */
+    function moveSemester(id, direction) {
+      const idx = state.semesters.findIndex(s => s.id === id);
+      const newIdx = idx + direction;
+
+      // 범위 벗어나면 무시
+      if (newIdx < 0 || newIdx >= state.semesters.length) return;
+
+      // 두 항목을 서로 교체 (구조분해 할당으로 간단하게)
+      [state.semesters[idx], state.semesters[newIdx]] =
+      [state.semesters[newIdx], state.semesters[idx]];
+
+      saveData();
+      renderSemesters();
+    }
+
+
+    /* =============================================
+       학기 삭제
+       - 삭제 전 확인창 띄움
+       - 삭제한 학기가 현재 선택된 학기였으면 선택 해제
+    ============================================= */
+    function deleteSemester(id) {
+      const sem = state.semesters.find(s => s.id === id);
+      if (!confirm(`"${sem.name}" 학기를 삭제할까요?\n⚠️ 이 학기의 모든 데이터가 사라져요!`)) return;
+
+      // 배열에서 해당 학기 제거 (filter: 해당 id가 아닌 것만 남김)
+      state.semesters = state.semesters.filter(s => s.id !== id);
+
+      // 삭제된 학기가 선택된 상태였으면 선택 해제
+      if (state.selectedId === id) state.selectedId = null;
+
+      saveData();
+      renderSemesters();
+      renderSubjects();
+    }
+
+
+    /* =============================================
+       모달: 학기 추가
+    ============================================= */
+    // 현재 선택된 타입 (기본: 정기)
+    let selectedType = 'regular';
+
+    function selectType(type) {
+      selectedType = type;
+
+      // 모든 타입 버튼 선택 해제 후 선택된 것만 강조
+      ['regular', 'seasonal', 'leave'].forEach(t => {
+        const btn = document.getElementById('type-' + t);
+        btn.className = 'type-btn'; // 기본 스타일로 초기화
+        if (t === type) btn.classList.add('selected-' + t); // 선택 스타일 추가
+      });
+    }
+
+    function openModal() {
+      selectedType = 'regular'; // 모달 열 때마다 '정기'로 초기화
+      selectType('regular');
+      document.getElementById('semesterNameInput').value = '';
+      document.getElementById('modalOverlay').classList.add('show');
+      document.getElementById('semesterNameInput').focus();
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('show');
+    }
+
+    // 모달 배경 클릭 시 닫기
+    document.getElementById('modalOverlay').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    function addSemester() {
+      const name = document.getElementById('semesterNameInput').value.trim();
+      if (!name) { alert('학기 이름을 입력해주세요!'); return; }
+
+      const newSem = {
+        id: 'sem_' + Date.now(), // 밀리초로 고유 ID 생성
+        name: name,
+        type: selectedType,      // 선택된 타입(정기/계절/휴학) 저장
+        subjects: []
+      };
+
+      state.semesters.push(newSem);
+      saveData();
+      renderSemesters();
+      closeModal();
+    }
+
+
+    /* =============================================
+       앱 시작
+    ============================================= */
+    loadData().then(() => {
+      renderSemesters();
+      renderSubjects();
+    });
+
+    window.addEventListener('pageshow', function(e) {
+      if (e.persisted) {
+        loadData().then(() => {
+          renderSemesters();
+          renderSubjects();
+        });
+      }
+    });
+  </script>
+
+</body>
+</html>

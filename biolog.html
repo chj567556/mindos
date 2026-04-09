@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bio-Log — MIND OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+  <style>
+    /* ── 기본 리셋 ── */
+    *{ margin:0; padding:0; box-sizing:border-box; }
+    body{
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      background: #f5f0ff;  /* biolog 보라 계열 배경 */
+      overflow-x: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── 페이지 진입 애니메이션 ── */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(14px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    body { animation: fadeUp .35s cubic-bezier(.4,0,.2,1); }
+
+    /* ── 배경 blob ── */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(72px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.6;
+    }
+    .b1 { width:420px; height:420px; background:#c4b5fd; top:-100px;  left:-80px;  animation:bm1 10s ease-in-out infinite; }
+    .b2 { width:340px; height:340px; background:#fbcfe8; top:40px;    right:-70px; animation:bm2 13s ease-in-out infinite; }
+    .b3 { width:300px; height:300px; background:#bfdbfe; bottom:-70px;left:28%;    animation:bm3 11s ease-in-out infinite; }
+    @keyframes bm1 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(20px,25px) scale(1.05)} }
+    @keyframes bm2 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(-18px,20px) scale(0.97)} }
+    @keyframes bm3 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(15px,-20px) scale(1.03)} }
+
+    /* ── 뒤로가기 버튼 ── */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(167,139,250,0.4);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 22px;
+      transition: all .2s;
+      color: #5b21b6;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .back-btn:hover { background:rgba(255,255,255,.95); transform:translateX(-3px); }
+
+    /* ── 페이지 콘텐츠 영역 ── */
+    .sub-page-wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      width: 100%;
+      padding: 28px 14px 40px;
+    }
+
+    /* ── 헤더 ── */
+    .sub-header { margin-bottom: 26px; }
+    .sub-badge-el {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 3px 13px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      font-weight: 500;
+      background: #ede9fe;
+      color: #5b21b6;
+      border: 1px solid #c4b5fd;
+    }
+    .sub-h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(24px, 5vw, 34px);
+      font-weight: 600;
+      font-style: italic;
+      /* 보라 그라디언트 텍스트 */
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .sub-desc {
+      font-size: 13.5px;
+      color: #6b5a8a;
+      line-height: 1.72;
+      margin-top: 8px;
+      max-width: 540px;
+    }
+
+    /* ── 카테고리 카드 그리드 ── */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      width: 100%;
+    }
+
+    /* 카테고리 카드 — 유리 효과 */
+    .cat-card {
+      background: rgba(255,255,255,.84);
+      backdrop-filter: blur(16px);
+      border: 1.5px solid rgba(255,255,255,.95);
+      border-radius: 22px;
+      padding: 24px 20px 20px;
+      cursor: pointer;
+      transition: all .25s cubic-bezier(.4,0,.2,1);
+      box-shadow: 0 4px 18px rgba(100,60,200,0.07);
+      position: relative;
+      overflow: hidden;
+    }
+    .cat-card:hover { transform:translateY(-5px); box-shadow:0 12px 30px rgba(100,60,200,0.14); }
+
+    .cat-emoji { font-size:30px; margin-bottom:12px; display:block; }
+    .cat-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 17px;
+      font-weight: 600;
+      color: #1e1240;
+      margin-bottom: 4px;
+    }
+    .cat-hint { font-size:12px; color:#7c6ea0; line-height:1.6; }
+
+    /* 카드 우하단 화살표 */
+    .cat-arrow {
+      position: absolute;
+      bottom: 14px;
+      right: 16px;
+      font-size: 14px;
+      opacity: 0.3;
+      transition: opacity .2s, transform .2s;
+      color: #7c3aed;
+    }
+    .cat-card:hover .cat-arrow { opacity:.8; transform:translateX(3px); }
+
+    /* 연동 예정 배지 */
+    .connected-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9.5px;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 8px;
+      margin-top: 8px;
+      font-weight: 500;
+      background: #ede9fe;
+      color: #7c3aed;
+      border: 1px solid #c4b5fd;
+    }
+
+    /* ── 토스트 알림 ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(30,18,64,.92);
+      backdrop-filter: blur(14px);
+      color: white;
+      padding: 13px 22px;
+      border-radius: 18px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transition: all .3s cubic-bezier(.4,0,.2,1);
+      pointer-events: none;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <!-- 배경 blob -->
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <!-- 토스트 알림 -->
+  <div id="toast"></div>
+
+  <div class="sub-page-wrap">
+
+    <!-- MIND OS로 돌아가기 — location.href로 파일 이동 -->
+    <button class="back-btn" onclick="location.href='mind_os.html'">← MIND OS</button>
+
+    <!-- 헤더 -->
+    <div class="sub-header">
+      <div class="sub-badge-el">🌱 Body & Routine</div>
+      <div class="sub-h2">Bio-Log</div>
+      <div class="sub-desc">몸과 루틴을 기록하는 공간이에요. 카테고리를 선택해 시작해요!</div>
+    </div>
+
+    <!-- 카테고리 카드 4종 -->
+    <div class="cat-grid">
+
+      <!-- 운동 → workout.html 으로 이동 -->
+      <div class="cat-card" onclick="location.href='workout.html'" style="border-top:4px solid #c4b5fd">
+        <span class="cat-emoji">🏋️</span>
+        <div class="cat-name">운동</div>
+        <div class="cat-hint">티어 트래킹 · 세트 기록<br>코인 획득 · 치팅 상점</div>
+        <div class="connected-badge">🔗 식단과 칼로리 연동 예정</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+      <!-- 식단 — 추후 diet.html 구현 예정 -->
+      <div class="cat-card" onclick="comingSoon('식단')" style="border-top:4px solid #ddd6fe">
+        <span class="cat-emoji">🥗</span>
+        <div class="cat-name">식단</div>
+        <div class="cat-hint">식사 기록 · 영양 분석<br>칼로리 트래킹</div>
+        <div class="connected-badge">🔗 운동과 칼로리 연동 예정</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+      <!-- 피부 — 추후 skin.html 구현 예정 -->
+      <div class="cat-card" onclick="comingSoon('피부')" style="border-top:4px solid #e9d5ff">
+        <span class="cat-emoji">✨</span>
+        <div class="cat-name">피부</div>
+        <div class="cat-hint">피부 상태 일지<br>제품 · 루틴 기록</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+      <!-- 생활습관 — 추후 구현 예정 -->
+      <div class="cat-card" onclick="comingSoon('생활습관')" style="border-top:4px solid #f3e8ff">
+        <span class="cat-emoji">🌙</span>
+        <div class="cat-name">생활습관</div>
+        <div class="cat-hint">수면 · 수분 · 컨디션<br>일상 루틴 체크</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // 아직 구현 안 된 카테고리 클릭 시 토스트 메시지 표시
+    function comingSoon(name) {
+      const t = document.getElementById('toast');
+      t.textContent = `🚧 ${name} — 곧 구현 예정이에요!`;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+  </script>
+
+</body>
+</html>

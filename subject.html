@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>과목 학습 — MIND OS</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet"/>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyBC_aeuuKXoJIodrmfeQ52bvWpzcZMrtPM",
+      authDomain: "mind-os-b23a5.firebaseapp.com",
+      projectId: "mind-os-b23a5",
+      storageBucket: "mind-os-b23a5.firebasestorage.app",
+      messagingSenderId: "88544003760",
+      appId: "1:88544003760:web:58af8d47183d2e259d9d75"
+    });
+    const db = firebase.firestore();
+  </script>
+
+  <style>
+    /* ── 기본 리셋 ── */
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      /* 밝기 올린 보라 그라디언트 — 기존보다 20~30% 더 밝은 보라 톤 */
+      background: linear-gradient(135deg, #1c1845, #463d8a, #332e62);
+      color: #fff;
+      overflow: hidden; /* 전체 페이지 스크롤 막기 — 각 패널이 독립 스크롤 */
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── 배경 blob ── */
+    /* opacity 0.12 → 0.25로 올려서 색감이 더 선명하게 보이도록 */
+    .bg-blob { position:fixed; border-radius:50%; filter:blur(80px); opacity:0.25; pointer-events:none; z-index:0; }
+    .b1 { width:500px; height:500px; background:#7c3aed; top:-100px; left:-100px; }
+    .b2 { width:400px; height:400px; background:#3b82f6; bottom:-80px; right:-80px; }
+
+    /* ══════════════════════════════
+       헤더 (상단 고정)
+    ══════════════════════════════ */
+    .header {
+      position: relative; z-index:10; flex-shrink:0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.25);
+      backdrop-filter: blur(12px);
+    }
+    .header-left { display:flex; align-items:center; gap:14px; }
+
+    .back-btn {
+      display:flex; align-items:center; gap:6px;
+      padding:7px 14px;
+      background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.14);
+      border-radius:10px; color:rgba(255,255,255,0.65);
+      font-family:'DM Sans',sans-serif; font-size:13px;
+      cursor:pointer; text-decoration:none; transition:all 0.2s;
+    }
+    .back-btn:hover { background:rgba(255,255,255,0.15); color:#fff; }
+
+    .subject-title { display:flex; align-items:center; gap:10px; }
+    .subject-icon { font-size:22px; }
+    .subject-name {
+      font-family:'Playfair Display',serif;
+      font-size:20px; font-weight:600;
+    }
+
+    /* 게임화 — 헤더 오른쪽 */
+    .header-right { display:flex; align-items:center; gap:14px; }
+
+    .streak-badge {
+      display:flex; align-items:center; gap:6px;
+      padding:7px 14px;
+      background:rgba(251,191,36,0.12);
+      border:1px solid rgba(251,191,36,0.3);
+      border-radius:20px; font-size:13px; font-weight:600; color:#fbbf24;
+    }
+
+    .level-info { display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
+    .level-name { font-size:12px; font-weight:600; color:rgba(255,255,255,0.65); }
+    .xp-bar-wrap {
+      width:110px; height:5px;
+      background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;
+    }
+    .xp-bar {
+      height:100%;
+      background:linear-gradient(90deg,#818cf8,#c084fc);
+      border-radius:3px; transition:width 0.5s ease;
+    }
+    .xp-text { font-size:10px; color:rgba(255,255,255,0.35); }
+
+    /* ══════════════════════════════
+       코딩 과목 전용: C언어 / Python 트랙 탭
+    ══════════════════════════════ */
+    .track-tabs {
+      position:relative; z-index:10; flex-shrink:0;
+      display:none; /* 코딩 과목만 보임 — JS로 켬 */
+      padding:0 28px;
+      border-bottom:1px solid rgba(255,255,255,0.08);
+      background:rgba(0,0,0,0.15);
+    }
+    .track-tab {
+      padding:11px 22px; margin-bottom:-1px;
+      font-size:14px; font-weight:500;
+      color:rgba(255,255,255,0.45);
+      cursor:pointer; border:none; background:none;
+      font-family:'DM Sans',sans-serif;
+      border-bottom:2px solid transparent;
+      transition:all 0.2s;
+    }
+    .track-tab.active { color:#fff; border-bottom-color:#818cf8; }
+    .track-tab:hover:not(.active) { color:rgba(255,255,255,0.75); }
+
+    /* ══════════════════════════════
+       메인 레이아웃 (왼쪽 주차 목록 + 오른쪽 내용)
+    ══════════════════════════════ */
+    .main-layout {
+      position:relative; z-index:10;
+      display:flex; flex:1; overflow:hidden;
+    }
+
+    /* ── 왼쪽: 주차 목록 패널 ── */
+    .week-panel {
+      width:210px; flex-shrink:0;
+      border-right:1px solid rgba(255,255,255,0.08);
+      background:rgba(0,0,0,0.15);
+      display:flex; flex-direction:column;
+      overflow-y:auto;
+    }
+    .week-panel-title {
+      padding:18px 14px 10px;
+      font-size:10px; font-weight:600;
+      letter-spacing:1.5px; text-transform:uppercase;
+      color:rgba(255,255,255,0.3); flex-shrink:0;
+    }
+    .week-list { display:flex; flex-direction:column; gap:3px; padding:0 8px; }
+
+    /* 개별 주차 아이템 */
+    .week-item {
+      padding:9px 10px; border-radius:9px;
+      display:flex; align-items:center; gap:9px;
+      transition:all 0.18s;
+    }
+    .week-item:hover { background:rgba(255,255,255,0.07); }
+    .week-item.active { background:rgba(124,58,237,0.25); }
+
+    /* 주차 이름 클릭 영역 */
+    .week-item-main {
+      flex:1; display:flex; align-items:center; gap:9px;
+      cursor:pointer; min-width:0;
+    }
+
+    /* 주차 액션 버튼 (수정/삭제) — 호버 시 나타남 */
+    .week-actions {
+      display:flex; gap:2px;
+      opacity:0; transition:opacity 0.15s; flex-shrink:0;
+    }
+    .week-item:hover .week-actions { opacity:1; }
+    .wact-btn {
+      width:20px; height:20px; border-radius:5px; border:none;
+      background:transparent; color:rgba(255,255,255,0.3);
+      cursor:pointer; font-size:11px;
+      display:flex; align-items:center; justify-content:center;
+      transition:all 0.15s;
+    }
+    .wact-btn:hover      { background:rgba(255,255,255,0.14); color:#fff; }
+    .wact-btn.del:hover  { background:rgba(239,68,68,0.2); color:#fca5a5; }
+
+    /* 완료 여부를 나타내는 동그라미 */
+    .week-dot {
+      width:14px; height:14px; flex-shrink:0; border-radius:50%;
+      border:2px solid rgba(255,255,255,0.2);
+      display:flex; align-items:center; justify-content:center;
+      font-size:8px; transition:all 0.2s;
+    }
+    .week-dot.done {
+      background:linear-gradient(135deg,#34d399,#10b981);
+      border-color:transparent; color:#fff;
+    }
+    .week-title-text {
+      font-size:13px; color:rgba(255,255,255,0.75);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .week-item.active .week-title-text { color:#fff; font-weight:500; }
+
+    /* 주차 추가 버튼 */
+    .week-add-btn {
+      margin:8px; padding:9px 12px;
+      background:transparent;
+      border:1px dashed rgba(255,255,255,0.14);
+      border-radius:9px; color:rgba(255,255,255,0.3);
+      font-family:'DM Sans',sans-serif; font-size:12px;
+      cursor:pointer; text-align:left; transition:all 0.2s; flex-shrink:0;
+    }
+    .week-add-btn:hover { border-color:rgba(255,255,255,0.35); color:rgba(255,255,255,0.65); }
+
+    /* ── 오른쪽: 콘텐츠 영역 ── */
+    .content-area { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+    /* 주차 미선택 빈 화면 */
+    .empty-state {
+      flex:1; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      color:rgba(255,255,255,0.25); gap:14px;
+    }
+    .empty-icon { font-size:44px; opacity:0.4; }
+
+    /* 주차 선택 시 나타나는 영역 */
+    #weekContent { display:none; flex:1; flex-direction:column; overflow:hidden; }
+
+    /* 강의안 | 퀴즈 탭 바 */
+    .content-tabs {
+      display:flex; flex-shrink:0;
+      padding:0 24px;
+      border-bottom:1px solid rgba(255,255,255,0.08);
+      background:rgba(0,0,0,0.1);
+    }
+    .content-tab {
+      padding:13px 18px; margin-bottom:-1px;
+      font-size:14px; font-weight:500;
+      color:rgba(255,255,255,0.4);
+      cursor:pointer; border:none; background:none;
+      font-family:'DM Sans',sans-serif;
+      border-bottom:2px solid transparent; transition:all 0.2s;
+    }
+    .content-tab.active { color:#fff; border-bottom-color:#818cf8; }
+    .content-tab:hover:not(.active) { color:rgba(255,255,255,0.7); }
+
+    /* 탭 내용 스크롤 영역 */
+    .tab-content { flex:1; overflow-y:auto; padding:22px 24px; }
+
+    /* ══════════════════════════════
+       강의안 탭 내용
+    ══════════════════════════════ */
+    /* 강의안 링크 입력 행 */
+    .url-row { display:flex; gap:8px; margin-bottom:14px; }
+    .url-input {
+      flex:1; padding:9px 13px;
+      background:rgba(255,255,255,0.07);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:10px; color:#fff;
+      font-family:'DM Sans',sans-serif; font-size:13px;
+      outline:none; transition:border-color 0.2s;
+    }
+    .url-input:focus { border-color:rgba(124,58,237,0.5); }
+    .url-input::placeholder { color:rgba(255,255,255,0.22); }
+    .url-open-btn {
+      padding:9px 16px; white-space:nowrap;
+      background:rgba(124,58,237,0.2);
+      border:1px solid rgba(124,58,237,0.4);
+      border-radius:10px; color:#c4b5fd;
+      font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .url-open-btn:hover { background:rgba(124,58,237,0.38); }
+
+    /* 강의안 목록 */
+    .mat-section-title {
+      font-size:12px; font-weight:600; color:rgba(255,255,255,0.35);
+      text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;
+    }
+    .mat-list { display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+    .mat-item {
+      display:flex; align-items:center; gap:8px;
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.1);
+      border-radius:10px; padding:9px 12px;
+    }
+    .mat-name {
+      flex:1; font-size:13px; color:rgba(255,255,255,0.85);
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    .mat-open-btn {
+      padding:4px 10px; white-space:nowrap; flex-shrink:0;
+      background:rgba(124,58,237,0.18); border:1px solid rgba(124,58,237,0.35);
+      border-radius:7px; color:#c4b5fd; font-size:12px; font-weight:500;
+      cursor:pointer; transition:all 0.15s;
+    }
+    .mat-open-btn:hover { background:rgba(124,58,237,0.35); }
+    .mat-move-btn {
+      padding:4px 7px; flex-shrink:0;
+      background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+      border-radius:6px; color:rgba(255,255,255,0.4); font-size:11px;
+      cursor:pointer; transition:all 0.15s;
+    }
+    .mat-move-btn:hover { background:rgba(255,255,255,0.14); color:#fff; }
+    .mat-del-btn {
+      padding:4px 8px; flex-shrink:0;
+      background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2);
+      border-radius:6px; color:rgba(239,68,68,0.5); font-size:12px;
+      cursor:pointer; transition:all 0.15s;
+    }
+    .mat-del-btn:hover { background:rgba(239,68,68,0.18); color:#fca5a5; }
+    .mat-add-row {
+      display:flex; gap:7px; margin-bottom:16px; flex-wrap:wrap;
+    }
+    .mat-name-inp, .mat-url-inp {
+      padding:8px 12px;
+      background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12);
+      border-radius:9px; color:#fff; font-family:'DM Sans',sans-serif; font-size:13px;
+      outline:none; transition:border-color 0.2s;
+    }
+    .mat-name-inp { width:130px; }
+    .mat-name-inp::placeholder, .mat-url-inp::placeholder { color:rgba(255,255,255,0.22); }
+    .mat-url-inp { flex:1; min-width:120px; }
+    .mat-name-inp:focus, .mat-url-inp:focus { border-color:rgba(124,58,237,0.5); }
+    .mat-add-btn {
+      padding:8px 14px; white-space:nowrap; flex-shrink:0;
+      background:rgba(99,102,241,0.2); border:1px solid rgba(99,102,241,0.4);
+      border-radius:9px; color:#a5b4fc; font-size:13px; font-weight:500;
+      cursor:pointer; transition:all 0.15s;
+    }
+    .mat-add-btn:hover { background:rgba(99,102,241,0.35); }
+
+    /* 노트 툴바 */
+    .note-toolbar { display:flex; gap:5px; margin-bottom:8px; flex-wrap:wrap; }
+    .toolbar-btn {
+      padding:4px 10px;
+      background:rgba(255,255,255,0.07);
+      border:1px solid rgba(255,255,255,0.1);
+      border-radius:6px; color:rgba(255,255,255,0.6);
+      font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600;
+      cursor:pointer; transition:all 0.15s;
+    }
+    .toolbar-btn:hover { background:rgba(255,255,255,0.14); color:#fff; }
+    .toolbar-btn.danger { color:rgba(239,68,68,0.6); }
+    .toolbar-btn.danger:hover { background:rgba(239,68,68,0.15); color:#fca5a5; border-color:rgba(239,68,68,0.3); }
+
+    /* contenteditable 노트 영역 */
+    .note-area {
+      min-height:280px; padding:18px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.09);
+      border-radius:14px;
+      color:rgba(255,255,255,0.88);
+      font-family:'DM Sans',sans-serif; font-size:14px; line-height:1.8;
+      outline:none; transition:border-color 0.2s;
+    }
+    .note-area:focus { border-color:rgba(124,58,237,0.4); }
+    /* 빈 노트일 때 플레이스홀더 */
+    .note-area:empty::before {
+      content: '강의 내용, 핵심 개념, 필기를 자유롭게 작성하세요 ✏️\n이미지도 Ctrl+V로 붙여넣기 가능해요!';
+      color:rgba(255,255,255,0.18);
+      white-space:pre-line;
+      pointer-events:none;
+    }
+    .note-area img { max-width:100%; border-radius:8px; margin:6px 0; display:block; cursor:pointer; }
+
+    /* ── 이미지 클릭 툴바 ── */
+    /* 이미지를 클릭하면 위에 뜨는 작은 조작 패널 — fixed로 화면 기준 위치 잡음 */
+    #imgToolbar {
+      position: fixed;           /* 스크롤해도 화면 기준으로 붙어있게 */
+      z-index: 9999;             /* 모든 요소 위에 */
+      display: none;             /* 기본은 숨김, 이미지 클릭 시 show */
+      flex-direction: column;
+      gap: 4px;
+      padding: 8px;
+      background: rgba(15, 12, 41, 0.92);
+      border: 1px solid rgba(124, 58, 237, 0.4);
+      border-radius: 12px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    #imgToolbar.visible { display: flex; } /* JS에서 이 클래스를 붙였다 뗐다 함 */
+
+    /* 툴바 안 버튼 그룹 (크기/정렬 각각 한 줄) */
+    .img-tb-row {
+      display: flex;
+      gap: 4px;
+    }
+    /* 툴바 안 버튼 공통 스타일 */
+    .img-tb-btn {
+      padding: 4px 9px;
+      font-size: 11px; font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 7px;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .img-tb-btn:hover { background: rgba(124,58,237,0.3); color: #fff; border-color: rgba(124,58,237,0.5); }
+    /* 현재 선택된 버튼 강조 */
+    .img-tb-btn.active { background: rgba(124,58,237,0.45); color: #fff; border-color: rgba(124,58,237,0.7); }
+
+    /* ══════════════════════════════
+       퀴즈/세트 탭 내용
+    ══════════════════════════════ */
+    /* 퀴즈 완료 토글 카드 */
+    .quiz-complete-card {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 20px;
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.09);
+      border-radius:14px; margin-bottom:22px;
+    }
+    .quiz-complete-label { font-size:14px; color:rgba(255,255,255,0.65); }
+    .quiz-toggle {
+      padding:8px 20px; border-radius:20px; border:none;
+      font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600;
+      cursor:pointer; transition:all 0.25s;
+    }
+    .quiz-toggle.done   { background:linear-gradient(135deg,#34d399,#10b981); color:#fff; }
+    .quiz-toggle.undone { background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.55); }
+
+    /* 틀린 문제 섹션 */
+    .section-label {
+      font-size:10px; font-weight:600; letter-spacing:1.5px;
+      text-transform:uppercase; color:rgba(255,255,255,0.3); margin-bottom:10px;
+    }
+    .wrong-add-row { display:flex; gap:8px; margin-bottom:12px; }
+    .wrong-input {
+      flex:1; padding:9px 13px;
+      background:rgba(255,255,255,0.07);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:10px; color:#fff;
+      font-family:'DM Sans',sans-serif; font-size:13px;
+      outline:none; transition:border-color 0.2s;
+    }
+    .wrong-input:focus { border-color:rgba(239,68,68,0.45); }
+    .wrong-input::placeholder { color:rgba(255,255,255,0.22); }
+    .wrong-add-btn {
+      padding:9px 16px; white-space:nowrap;
+      background:rgba(239,68,68,0.15);
+      border:1px solid rgba(239,68,68,0.3);
+      border-radius:10px; color:#fca5a5;
+      font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .wrong-add-btn:hover { background:rgba(239,68,68,0.28); }
+
+    .wrong-list { display:flex; flex-direction:column; gap:7px; }
+    .wrong-item {
+      display:flex; align-items:center; gap:10px;
+      padding:11px 14px;
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:10px; transition:all 0.2s;
+    }
+    .wrong-item.mastered {
+      background:rgba(52,211,153,0.06);
+      border-color:rgba(52,211,153,0.18);
+    }
+    .wrong-memo {
+      flex:1; font-size:13px;
+      color:rgba(255,255,255,0.75); line-height:1.5;
+    }
+    .wrong-item.mastered .wrong-memo {
+      text-decoration:line-through; color:rgba(255,255,255,0.3);
+    }
+    .wrong-master-btn {
+      padding:4px 11px; border-radius:20px;
+      font-family:'DM Sans',sans-serif; font-size:11px; font-weight:600;
+      cursor:pointer; white-space:nowrap; transition:all 0.2s;
+    }
+    .wrong-item:not(.mastered) .wrong-master-btn {
+      background:rgba(52,211,153,0.12); color:#6ee7b7;
+      border:1px solid rgba(52,211,153,0.28);
+    }
+    .wrong-item.mastered .wrong-master-btn {
+      background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.3);
+      border:1px solid rgba(255,255,255,0.1);
+    }
+    .wrong-del-btn {
+      width:22px; height:22px; border-radius:5px; border:none;
+      background:transparent; color:rgba(255,255,255,0.18);
+      cursor:pointer; font-size:14px;
+      display:flex; align-items:center; justify-content:center;
+      transition:all 0.15s;
+    }
+    .wrong-del-btn:hover { background:rgba(239,68,68,0.18); color:#fca5a5; }
+
+    /* ══════════════════════════════
+       주차 완료 버튼 (하단 고정 바)
+    ══════════════════════════════ */
+    .complete-bar {
+      flex-shrink:0;
+      display:flex; align-items:center; gap:14px;
+      padding:14px 24px;
+      border-top:1px solid rgba(255,255,255,0.08);
+      background:rgba(0,0,0,0.18);
+    }
+    .complete-btn {
+      padding:11px 26px; border-radius:12px; border:none;
+      font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600;
+      cursor:pointer; transition:all 0.25s;
+    }
+    .complete-btn.done   { background:linear-gradient(135deg,#34d399,#10b981); color:#fff; }
+    .complete-btn.undone { background:linear-gradient(135deg,#7c3aed,#6d28d9); color:#fff; }
+    .complete-btn:hover  { filter:brightness(1.1); transform:translateY(-1px); }
+    .complete-hint { font-size:12px; color:rgba(255,255,255,0.3); }
+
+    /* ══════════════════════════════
+       주차 추가 모달
+    ══════════════════════════════ */
+    .modal-overlay {
+      position:fixed; inset:0;
+      background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
+      z-index:100; display:flex; align-items:center; justify-content:center;
+      opacity:0; pointer-events:none; transition:opacity 0.2s;
+    }
+    .modal-overlay.show { opacity:1; pointer-events:all; }
+    .modal {
+      background:#1e1b4b; border:1px solid rgba(255,255,255,0.14);
+      border-radius:20px; padding:28px; width:340px;
+      transform:scale(0.95);
+      transition:transform 0.2s cubic-bezier(0.4,0,0.2,1);
+    }
+    .modal-overlay.show .modal { transform:scale(1); }
+    .modal-title { font-family:'Playfair Display',serif; font-size:18px; margin-bottom:16px; }
+    .modal-input {
+      width:100%; padding:11px 14px;
+      background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.15);
+      border-radius:10px; color:#fff;
+      font-family:'DM Sans',sans-serif; font-size:14px;
+      margin-bottom:16px; outline:none; transition:border-color 0.2s;
+    }
+    .modal-input:focus { border-color:rgba(124,58,237,0.6); }
+    .modal-input::placeholder { color:rgba(255,255,255,0.28); }
+    .modal-btns { display:flex; gap:10px; }
+    .modal-btn {
+      flex:1; padding:11px; border-radius:10px; border:none;
+      font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .modal-btn.cancel  { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.55); }
+    .modal-btn.confirm { background:linear-gradient(135deg,#7c3aed,#6d28d9); color:#fff; }
+
+    /* ══════════════════════════════
+       XP 획득 팝업 (우상단)
+    ══════════════════════════════ */
+    .xp-popup {
+      position:fixed; top:72px; right:20px;
+      background:rgba(124,58,237,0.92); backdrop-filter:blur(10px);
+      color:#fff; padding:9px 18px; border-radius:20px;
+      font-size:13px; font-weight:600;
+      opacity:0; transform:translateY(8px);
+      transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+      pointer-events:none; z-index:200;
+    }
+    .xp-popup.show { opacity:1; transform:translateY(0); }
+  </style>
+</head>
+
+<body>
+  <div class="bg-blob b1"></div>
+  <div class="bg-blob b2"></div>
+
+  <!-- ── 헤더 ── -->
+  <header class="header">
+    <div class="header-left">
+      <a href="university.html" class="back-btn">← 대학공부</a>
+      <div class="subject-title">
+        <span class="subject-icon" id="subjectIcon"></span>
+        <span class="subject-name" id="subjectName"></span>
+      </div>
+    </div>
+    <div class="header-right">
+      <!-- 스트릭 뱃지 -->
+      <div class="streak-badge">🔥 <span id="streakCount">0</span>일 연속</div>
+      <!-- 레벨 + XP 바 -->
+      <div class="level-info">
+        <span class="level-name" id="levelName">새내기</span>
+        <div class="xp-bar-wrap"><div class="xp-bar" id="xpBar" style="width:0%"></div></div>
+        <span class="xp-text" id="xpText">0 XP</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── 코딩 과목 전용 트랙 탭 ── -->
+  <div class="track-tabs" id="trackTabs">
+    <button class="track-tab active" id="track-c"      onclick="switchTrack('c')">🖥️ C언어</button>
+    <button class="track-tab"        id="track-python"  onclick="switchTrack('python')">🐍 Python</button>
+  </div>
+
+  <!-- ── 메인 레이아웃 ── -->
+  <div class="main-layout">
+
+    <!-- 왼쪽: 주차 목록 -->
+    <aside class="week-panel">
+      <p class="week-panel-title">주차 목록</p>
+      <div class="week-list" id="weekList"></div>
+      <button class="week-add-btn" onclick="openWeekModal()">+ 주차 추가</button>
+    </aside>
+
+    <!-- 오른쪽: 콘텐츠 -->
+    <div class="content-area">
+
+      <!-- 주차 미선택 시 -->
+      <div class="empty-state" id="emptyState">
+        <span class="empty-icon">📖</span>
+        <span>왼쪽에서 주차를 선택하세요</span>
+      </div>
+
+      <!-- 주차 선택 시 -->
+      <div id="weekContent">
+        <!-- 강의안 | 퀴즈 탭 -->
+        <div class="content-tabs">
+          <button class="content-tab active" id="tab-lecture" onclick="switchTab('lecture')">📖 강의안</button>
+          <button class="content-tab"        id="tab-quiz"    onclick="switchTab('quiz')">📝 퀴즈 / 세트</button>
+        </div>
+
+        <!-- 강의안 탭 -->
+        <div class="tab-content" id="tabLecture">
+          <!-- 강의안 목록 -->
+          <p class="mat-section-title">강의안</p>
+          <div class="mat-list" id="materialsList"></div>
+          <!-- 강의안 추가 입력 행 -->
+          <div class="mat-add-row">
+            <input class="mat-name-inp" id="matNameInp" placeholder="이름 (예: 1강)"/>
+            <input class="mat-url-inp"  id="matUrlInp"  placeholder="URL 또는 파일 경로" onkeydown="if(event.key==='Enter') addMaterial()"/>
+            <button class="mat-add-btn" onclick="addMaterial()">+ 추가</button>
+          </div>
+          <!-- 노트 툴바 -->
+          <div class="note-toolbar">
+            <button class="toolbar-btn" onclick="fmt('bold')"><b>B</b></button>
+            <button class="toolbar-btn" onclick="fmt('italic')"><i>I</i></button>
+            <button class="toolbar-btn" onclick="fmt('underline')"><u>U</u></button>
+            <button class="toolbar-btn" onclick="fmt('insertUnorderedList')">• 목록</button>
+            <button class="toolbar-btn" onclick="fmt('insertOrderedList')">1. 목록</button>
+            <button class="toolbar-btn danger" onclick="clearNote()">초기화</button>
+          </div>
+          <!-- 자유 노트 (contenteditable) — 타이핑하면 자동 저장 -->
+          <div class="note-area" id="noteArea" contenteditable="true"></div>
+        </div>
+
+        <!-- ── 이미지 클릭 툴바 (노트 영역 바깥, 화면 전체에 떠다님) ── -->
+        <!-- 이미지를 클릭하면 이 패널이 이미지 위쪽에 fixed로 나타남 -->
+        <div id="imgToolbar">
+          <!-- 크기 조절 버튼 한 줄 -->
+          <div class="img-tb-row">
+            <button class="img-tb-btn" onclick="setImgSize('small')">작게</button>
+            <button class="img-tb-btn" onclick="setImgSize('medium')">중간</button>
+            <button class="img-tb-btn" onclick="setImgSize('large')">크게</button>
+            <button class="img-tb-btn" onclick="setImgSize('full')">전체</button>
+          </div>
+          <!-- 정렬 버튼 한 줄 -->
+          <div class="img-tb-row">
+            <button class="img-tb-btn" onclick="setImgAlign('left')">◀ 왼쪽</button>
+            <button class="img-tb-btn" onclick="setImgAlign('center')">● 가운데</button>
+            <button class="img-tb-btn" onclick="setImgAlign('right')">오른쪽 ▶</button>
+          </div>
+        </div>
+
+        <!-- 퀴즈/세트 탭 -->
+        <div class="tab-content" id="tabQuiz" style="display:none">
+          <!-- 퀴즈 완료 토글 -->
+          <div class="quiz-complete-card">
+            <span class="quiz-complete-label">이번 주차 퀴즈 / 세트 완료 여부</span>
+            <button class="quiz-toggle undone" id="quizToggleBtn" onclick="toggleQuiz()">미완료</button>
+          </div>
+
+          <!-- 틀린 문제 메모 -->
+          <p class="section-label">틀린 문제 메모</p>
+          <div class="wrong-add-row">
+            <input class="wrong-input" id="wrongInput"
+              placeholder="틀린 문제 메모 (예: 3번 — 부호 실수, 적분 범위 혼동)"
+              onkeydown="if(event.key==='Enter') addWrongAnswer()"/>
+            <button class="wrong-add-btn" onclick="addWrongAnswer()">+ 추가</button>
+          </div>
+          <div class="wrong-list" id="wrongList"></div>
+        </div>
+
+        <!-- 주차 완료 버튼 -->
+        <div class="complete-bar">
+          <button class="complete-btn undone" id="completeBtn" onclick="toggleWeekComplete()">
+            ✓ 주차 완료
+          </button>
+          <span class="complete-hint" id="completeHint">완료 시 +50 XP 획득!</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 주차 추가 모달 -->
+  <div class="modal-overlay" id="weekModal">
+    <div class="modal">
+      <!-- id로 JS에서 텍스트 동적 변경 (추가/수정 모드) -->
+      <h2 class="modal-title" id="weekModalTitle">새 주차 추가</h2>
+      <input class="modal-input" id="weekNameInput"
+        placeholder="예: 1주차, Week 3, 미적분 챕터1"/>
+      <div class="modal-btns">
+        <button class="modal-btn cancel"  onclick="closeWeekModal()">취소</button>
+        <button class="modal-btn confirm" id="weekModalConfirm" onclick="confirmWeekModal()">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- XP 획득 팝업 -->
+  <div class="xp-popup" id="xpPopup"></div>
+
+
+  <script>
+    /* =============================================
+       URL 파라미터 읽기
+       university.html에서 ?sub=phys&sem=fa2627 형태로 전달받음
+    ============================================= */
+    const params    = new URLSearchParams(location.search);
+    const subjectId = params.get('sub');  // 'phys' | 'math' | 'code'
+    const semId     = params.get('sem');  // 'fa2627' 등
+
+    // 과목별 이름 + 아이콘 테이블
+    const SUBJECT_INFO = {
+      phys: { name: 'Engineering Physics',     icon: '⚛️' },
+      math: { name: 'Engineering Mathematics', icon: '📐' },
+      code: { name: 'Coding with C & Python',  icon: '💻' },
+    };
+
+    // 레벨 테이블 (XP 임계값 → 레벨 이름)
+    const LEVELS = [
+      { name: '새내기', xp: 0    },
+      { name: '학부',   xp: 100  },
+      { name: '과탑',   xp: 300  },
+      { name: '석사',   xp: 600  },
+      { name: '박사',   xp: 1000 },
+    ];
+
+    // 코딩 과목 여부
+    const isCoding = (subjectId === 'code');
+
+    /* =============================================
+       상태 변수
+    ============================================= */
+    let currentTrack   = isCoding ? 'c' : null; // 'c' | 'python' | null
+    let currentData    = {};    // 현재 트랙의 데이터
+    let selectedWeekId = null;  // 선택된 주차 ID
+    let currentTab     = 'lecture'; // 'lecture' | 'quiz'
+    let saveTimer      = null;  // 자동저장 디바운스 타이머
+
+    /* =============================================
+       localStorage 키 규칙
+       - mindos_subject_{semId}_{subjectId}_{track}
+       - 코딩이 아니면 track 부분 없음
+    ============================================= */
+    function getKey(track) {
+      const suffix = track ? `_${track}` : '';
+      return `mindos_subject_${semId}_${subjectId}${suffix}`;
+    }
+
+    // 초기 데이터 구조 생성
+    function makeBlankData() {
+      return { xp: 0, streak: 0, lastStudyDate: null, weeks: [] };
+    }
+
+    // 구버전 데이터(lectureUrl 단일 문자열) → materials 배열로 변환
+    function migrateMaterials(data) {
+      data.weeks.forEach(week => {
+        if (!week.materials) {
+          week.materials = week.lectureUrl
+            ? [{ id: 'mat_0', name: '강의안', url: week.lectureUrl }]
+            : [];
+          delete week.lectureUrl;
+        }
+      });
+    }
+
+    async function loadData(track) {
+      const key = getKey(track);
+      let data;
+
+      // ① localStorage를 1순위로 확인
+      // 이유: 이미지(base64)가 포함된 노트는 Firestore 1MB 한도를 초과해서
+      //       Firestore 저장이 실패할 수 있음. localStorage는 항상 최신 상태.
+      const local = localStorage.getItem(key);
+      if (local) {
+        try { data = JSON.parse(local); } catch(e) {}
+      }
+
+      // ② localStorage가 비어있을 때만 Firestore에서 가져옴
+      // (처음 접속하는 기기 — 예: 폰에서 처음 열 때)
+      if (!data) {
+        try {
+          const snap = await db.collection('mindos_subjects').doc(key).get();
+          if (snap.exists) data = snap.data();
+        } catch(e) {
+          console.error('Firebase 로드 실패:', e);
+        }
+      }
+
+      if (!data) data = makeBlankData();
+      migrateMaterials(data);
+      return data;
+    }
+
+    function saveData() {
+      const key = getKey(currentTrack);
+      // localStorage는 항상 저장 (이미지 포함, 용량 제한 없음)
+      localStorage.setItem(key, JSON.stringify(currentData));
+      // Firestore는 텍스트 위주 데이터 동기화용 — 이미지 크면 실패할 수 있지만 괜찮음
+      db.collection('mindos_subjects').doc(key).set(currentData).catch(e => console.error('Firebase 저장 실패 (이미지 용량 초과일 수 있음):', e));
+    }
+
+    /* =============================================
+       오늘 날짜 → 'YYYY-MM-DD' 문자열
+    ============================================= */
+    function today() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    /* =============================================
+       스트릭 기록
+       - 오늘 처음 공부하면 스트릭 증가/유지/리셋 판단
+    ============================================= */
+    function recordStudy() {
+      const t = today();
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+      if (currentData.lastStudyDate === t) return; // 오늘 이미 했음
+
+      if (currentData.lastStudyDate === yesterday) {
+        currentData.streak++; // 어제도 했으면 연속 유지
+      } else {
+        currentData.streak = 1; // 하루 이상 비었으면 리셋
+      }
+
+      currentData.lastStudyDate = t;
+      saveData();
+      renderGamification();
+    }
+
+    /* =============================================
+       XP 추가 + 팝업
+    ============================================= */
+    function addXP(amount) {
+      currentData.xp += amount;
+      saveData();
+      renderGamification();
+      // 팝업 표시
+      const pop = document.getElementById('xpPopup');
+      pop.textContent = `⭐ +${amount} XP`;
+      pop.classList.add('show');
+      setTimeout(() => pop.classList.remove('show'), 1800);
+    }
+
+    /* =============================================
+       현재 레벨 계산
+    ============================================= */
+    function getLevel() {
+      let lv = LEVELS[0];
+      for (const l of LEVELS) { if (currentData.xp >= l.xp) lv = l; }
+      return lv;
+    }
+    function getNextLevel() {
+      const idx = LEVELS.findIndex(l => l.name === getLevel().name);
+      return LEVELS[idx + 1] || null;
+    }
+
+    /* =============================================
+       게임화 UI 업데이트 (헤더 오른쪽)
+    ============================================= */
+    function renderGamification() {
+      document.getElementById('streakCount').textContent = currentData.streak;
+      const lv   = getLevel();
+      const next = getNextLevel();
+      document.getElementById('levelName').textContent = lv.name;
+      if (next) {
+        const pct = ((currentData.xp - lv.xp) / (next.xp - lv.xp)) * 100;
+        document.getElementById('xpBar').style.width = pct + '%';
+        document.getElementById('xpText').textContent = `${currentData.xp} / ${next.xp} XP`;
+      } else {
+        document.getElementById('xpBar').style.width = '100%';
+        document.getElementById('xpText').textContent = `${currentData.xp} XP — 최고 레벨! 🏆`;
+      }
+    }
+
+    /* =============================================
+       코딩 과목: 트랙 전환 (C언어 ↔ Python)
+    ============================================= */
+    async function switchTrack(track) {
+      saveNoteNow();
+      currentTrack   = track;
+      currentData    = await loadData(track);
+      selectedWeekId = null;
+      ['c', 'python'].forEach(t => {
+        document.getElementById('track-' + t).classList.toggle('active', t === track);
+      });
+      renderGamification();
+      renderWeeks();
+      showEmpty();
+    }
+
+    /* =============================================
+       주차 목록 렌더링 (왼쪽 패널)
+       - 각 주차 아이템에 수정(✏️), 삭제(×) 버튼 포함
+       - 버튼은 호버 시 나타남 (CSS로 제어)
+    ============================================= */
+    function renderWeeks() {
+      const list = document.getElementById('weekList');
+      list.innerHTML = '';
+
+      currentData.weeks.forEach(week => {
+        const item = document.createElement('div');
+        item.className = 'week-item' + (week.id === selectedWeekId ? ' active' : '');
+
+        item.innerHTML = `
+          <!-- 왼쪽 클릭 영역: 점 + 이름 → 주차 선택 -->
+          <div class="week-item-main" onclick="selectWeek('${week.id}')">
+            <div class="week-dot ${week.completed ? 'done' : ''}">${week.completed ? '✓' : ''}</div>
+            <span class="week-title-text">${week.title}</span>
+          </div>
+          <!-- 오른쪽 액션 버튼 (호버 시 나타남) -->
+          <div class="week-actions">
+            <button class="wact-btn" onclick="editWeek('${week.id}')" title="이름 수정">✏️</button>
+            <button class="wact-btn del" onclick="deleteWeek('${week.id}')" title="삭제">×</button>
+          </div>
+        `;
+
+        list.appendChild(item);
+      });
+    }
+
+    /* =============================================
+       주차 선택 → 오른쪽 내용 표시
+    ============================================= */
+    function selectWeek(id) {
+      saveNoteNow(); // 이전 주차 노트 저장
+      selectedWeekId = id;
+      renderWeeks();
+      showWeekContent();
+    }
+
+    function showEmpty() {
+      document.getElementById('emptyState').style.display = 'flex';
+      document.getElementById('weekContent').style.display = 'none';
+    }
+
+    function showWeekContent() {
+      const week = currentData.weeks.find(w => w.id === selectedWeekId);
+      if (!week) { showEmpty(); return; }
+
+      document.getElementById('emptyState').style.display  = 'none';
+      document.getElementById('weekContent').style.display = 'flex';
+
+      // 강의안 목록 복원
+      renderMaterials(week);
+      document.getElementById('matNameInp').value = '';
+      document.getElementById('matUrlInp').value  = '';
+
+      // 노트 HTML 복원 (innerHTML 그대로 — 이미지 포함)
+      document.getElementById('noteArea').innerHTML = week.lectureNotes || '';
+
+      // 퀴즈 탭 상태 복원
+      renderQuizTab(week);
+
+      // 완료 버튼 상태
+      renderCompleteBtn(week);
+
+      // 현재 탭 유지
+      switchTab(currentTab);
+    }
+
+    /* =============================================
+       강의안 | 퀴즈 탭 전환
+    ============================================= */
+    function switchTab(tab) {
+      currentTab = tab;
+      document.getElementById('tab-lecture').classList.toggle('active', tab === 'lecture');
+      document.getElementById('tab-quiz').classList.toggle('active',    tab === 'quiz');
+      document.getElementById('tabLecture').style.display = tab === 'lecture' ? 'block' : 'none';
+      document.getElementById('tabQuiz').style.display    = tab === 'quiz'    ? 'block' : 'none';
+    }
+
+    /* =============================================
+       강의안 목록 렌더링
+    ============================================= */
+    function renderMaterials(week) {
+      const list = document.getElementById('materialsList');
+      if (!week.materials || !week.materials.length) {
+        list.innerHTML = '<div style="font-size:12.5px;color:rgba(255,255,255,0.2);padding:4px 0 10px">아직 강의안이 없어요</div>';
+        return;
+      }
+      list.innerHTML = week.materials.map((m, i) => `
+        <div class="mat-item">
+          <span class="mat-name" title="${m.url}">${m.name || '강의안'}</span>
+          <button class="mat-open-btn" onclick="openMaterial('${m.id}')">열기 ↗</button>
+          <button class="mat-move-btn" onclick="moveMaterial('${m.id}', -1)" ${i === 0 ? 'disabled style="opacity:0.2"' : ''}>▲</button>
+          <button class="mat-move-btn" onclick="moveMaterial('${m.id}',  1)" ${i === week.materials.length - 1 ? 'disabled style="opacity:0.2"' : ''}>▼</button>
+          <button class="mat-del-btn"  onclick="deleteMaterial('${m.id}')">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function openMaterial(id) {
+      const week = currentData.weeks.find(w => w.id === selectedWeekId);
+      if (!week) return;
+      const mat = week.materials.find(m => m.id === id);
+      if (!mat || !mat.url) return;
+      const href = mat.url.startsWith('http') ? mat.url : 'file:///' + mat.url.replace(/\\/g, '/');
+      window.open(href, '_blank');
+    }
+
+    function addMaterial() {
+      const name = document.getElementById('matNameInp').value.trim();
+      const url  = document.getElementById('matUrlInp').value.trim();
+      if (!url) return;
+      const week = currentData.weeks.find(w => w.id === selectedWeekId);
+      if (!week) return;
+      if (!week.materials) week.materials = [];
+      week.materials.push({ id: 'mat_' + Date.now(), name: name || '강의안', url });
+      saveData();
+      renderMaterials(week);
+      document.getElementById('matNameInp').value = '';
+      document.getElementById('matUrlInp').value  = '';
+    }
+
+    function deleteMaterial(id) {
+      const week = currentData.weeks.find(w => w.id === selectedWeekId);
+      if (!week) return;
+      week.materials = week.materials.filter(m => m.id !== id);
+      saveData();
+      renderMaterials(week);
+    }
+
+    function moveMaterial(id, dir) {
+      const week = currentData.weeks.find(w => w.id === selectedWeekId);
+      if (!week) return;
+      const idx = week.materials.findIndex(m => m.id === id);
+      const newIdx = idx + dir;
+      if (newIdx < 0 || newIdx >= week.materials.length) return;
+      const tmp = week.materials[idx];
+      week.materials[idx] = week.materials[newIdx];
+      week.materials[newIdx] = tmp;
+      saveData();
+      renderMaterials(week);
+    }
+
+    /* =============================================
+       노트 편집 기능
+    ============================================= */
+    // 서식 적용 (굵게, 기울임, 밑줄, 목록)
+    // — execCommand는 deprecated지만 현재 모든 브라우저에서 작동함
+    function fmt(cmd) {
+      document.getElementById('noteArea').focus();
+      document.execCommand(cmd, false, null);
+    }
+
+    // 노트 전체 초기화
+    function clearNote() {
+      if (!confirm('노트 내용을 모두 지울까요?')) return;
+      document.getElementById('noteArea').innerHTML = '';
+      saveNoteNow();
+    }
+
+    // 이미지 압축 함수
+    // 캔버스(canvas)를 도화지처럼 써서 이미지를 다시 그린 뒤 JPEG로 추출하는 원리
+    // maxWidth: 최대 가로 픽셀 (넘으면 비율 유지하며 축소)
+    // quality: JPEG 품질 0~1 (0.8 = 80% 품질, 강의안 텍스트 읽기엔 충분)
+    function compressImage(dataUrl, maxWidth, quality, callback) {
+      const img = new Image();
+      img.onload = function() {
+        let w = img.width, h = img.height;
+        // 원본이 maxWidth보다 크면 비율 유지하며 줄이기
+        if (w > maxWidth) {
+          h = Math.round(h * maxWidth / w);
+          w = maxWidth;
+        }
+        // 캔버스에 이미지 그리기
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        // JPEG로 변환 (PNG보다 용량 훨씬 작음)
+        callback(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = dataUrl;
+    }
+
+    // 이미지 Ctrl+V 붙여넣기 처리
+    document.getElementById('noteArea').addEventListener('paste', function(e) {
+      for (const item of e.clipboardData.items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault(); // 기본 붙여넣기 동작 차단
+          const reader = new FileReader();
+          reader.onload = ev => {
+            // 붙여넣기 전에 압축 먼저 (최대 1200px, 품질 80%)
+            // → 강의안 슬라이드 텍스트 읽기엔 충분하고 용량은 대폭 줄어듦
+            compressImage(ev.target.result, 1200, 0.8, (compressed) => {
+              document.execCommand('insertHTML', false,
+                `<img src="${compressed}" style="max-width:100%;border-radius:8px;margin:6px 0">`
+              );
+              saveNoteNow();
+            });
+          };
+          reader.readAsDataURL(item.getAsFile());
+        }
+      }
+    });
+
+    /* =============================================
+       이미지 클릭 툴바 — 클릭한 이미지 위에 툴바를 띄움
+    ============================================= */
+
+    let selectedImg = null; // 현재 툴바가 가리키고 있는 이미지 요소
+
+    // noteArea 안에서 클릭 발생 시: img 태그면 툴바 표시, 아니면 툴바 숨김
+    document.getElementById('noteArea').addEventListener('click', function(e) {
+      if (e.target.tagName === 'IMG') {
+        selectedImg = e.target; // 클릭한 이미지를 기억해둠
+        showImgToolbar(e.target);
+      } else {
+        hideImgToolbar(); // 이미지 외 다른 곳 클릭 시 툴바 숨김
+      }
+    });
+
+    // 노트 영역 바깥을 클릭해도 툴바 숨김
+    document.addEventListener('click', function(e) {
+      const toolbar = document.getElementById('imgToolbar');
+      // 클릭한 게 툴바도 아니고 이미지도 아니면 닫기
+      if (!toolbar.contains(e.target) && e.target.tagName !== 'IMG') {
+        hideImgToolbar();
+      }
+    });
+
+    // 툴바를 이미지 바로 위쪽에 위치시키는 함수
+    // getBoundingClientRect() = 요소의 화면 기준 좌표를 알려주는 함수 (마치 "이 요소는 화면 어디에 있어?" 하고 묻는 것)
+    function showImgToolbar(img) {
+      const toolbar = document.getElementById('imgToolbar');
+      const rect = img.getBoundingClientRect(); // 이미지의 화면 내 위치/크기
+      toolbar.classList.add('visible');
+
+      // 툴바 너비를 먼저 렌더링해야 정확한 위치를 계산할 수 있음
+      // → 잠깐 보이게 했다가 위치 계산 후 다시 조정
+      const tbWidth = toolbar.offsetWidth;
+
+      // 이미지 가로 중앙 위에 위치 (가로: 이미지 중앙 - 툴바 절반, 세로: 이미지 위쪽 - 약간 간격)
+      let left = rect.left + rect.width / 2 - tbWidth / 2;
+      let top  = rect.top - toolbar.offsetHeight - 8; // 이미지 위 8px 띄움
+
+      // 화면 왼쪽 바깥으로 벗어나면 보정
+      if (left < 8) left = 8;
+      // 화면 위로 벗어나면 이미지 아래쪽에 표시
+      if (top < 8) top = rect.bottom + 8;
+
+      toolbar.style.left = left + 'px';
+      toolbar.style.top  = top  + 'px';
+
+      // 현재 이미지의 크기/정렬 상태로 버튼 활성화 표시 업데이트
+      updateActiveButtons(img);
+    }
+
+    // 툴바 숨기기
+    function hideImgToolbar() {
+      document.getElementById('imgToolbar').classList.remove('visible');
+      selectedImg = null;
+    }
+
+    // 현재 이미지 상태에 맞게 버튼 active 클래스 업데이트
+    function updateActiveButtons(img) {
+      // 크기 버튼들
+      const sizeBtns = { small:'작게', medium:'중간', large:'크게', full:'전체' };
+      document.querySelectorAll('#imgToolbar .img-tb-btn').forEach(btn => btn.classList.remove('active'));
+
+      // 이미지의 style.width로 현재 크기 확인
+      const w = img.style.width || '';
+      if      (w === '25%')  activateBtn('작게');
+      else if (w === '50%')  activateBtn('중간');
+      else if (w === '75%')  activateBtn('크게');
+      else if (w === '100%' || w === '') activateBtn('전체');
+
+      // 정렬은 margin으로 판단 (가운데: auto, 오른쪽: margin-left:auto, 왼쪽: 기본)
+      const ml = img.style.marginLeft || '';
+      const mr = img.style.marginRight || '';
+      if (ml === 'auto' && mr === 'auto') activateBtn('● 가운데');
+      else if (ml === 'auto')             activateBtn('오른쪽 ▶');
+      else                                activateBtn('◀ 왼쪽');
+    }
+
+    // 버튼 텍스트로 active 클래스 붙이는 헬퍼
+    function activateBtn(label) {
+      document.querySelectorAll('#imgToolbar .img-tb-btn').forEach(btn => {
+        if (btn.textContent.trim() === label) btn.classList.add('active');
+      });
+    }
+
+    // 크기 설정 — 이미지 width를 % 단위로 조정
+    // % 단위를 쓰는 이유: 화면 크기가 달라져도 비율이 유지됨 (px 쓰면 폰에서 삐져나올 수 있음)
+    function setImgSize(size) {
+      if (!selectedImg) return;
+      const sizeMap = { small: '25%', medium: '50%', large: '75%', full: '100%' };
+      selectedImg.style.width = sizeMap[size];
+      selectedImg.style.maxWidth = '100%'; // 부모보다 커지지 않도록 안전장치
+      updateActiveButtons(selectedImg);
+      showImgToolbar(selectedImg); // 이미지 크기 바뀌면 툴바 위치도 재계산
+      saveNoteNow(); // 변경사항 즉시 저장
+    }
+
+    // 정렬 설정 — CSS margin 조작으로 좌/중/우 정렬
+    // (이미지가 block 요소이므로 margin: auto 트릭이 가운데 정렬에 통함)
+    function setImgAlign(align) {
+      if (!selectedImg) return;
+      if (align === 'left') {
+        selectedImg.style.marginLeft  = '0';
+        selectedImg.style.marginRight = 'auto';
+      } else if (align === 'center') {
+        selectedImg.style.marginLeft  = 'auto';
+        selectedImg.style.marginRight = 'auto';
+      } else if (align === 'right') {
+        selectedImg.style.marginLeft  = 'auto';
+        selectedImg.style.marginRight = '0';
+      }
+      updateActiveButtons(selectedImg);
+      saveNoteNow(); // 변경사항 즉시 저장
+    }
+
+    // 타이핑 시 1초 후 자동저장 (디바운스 — 너무 자주 저장 안 하도록)
+    document.getElementById('noteArea').addEventListener('input', function() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveNoteNow, 1000);
+    });
+
+    // 노트 내용을 현재 주차에 즉시 저장
+    function saveNoteNow() {
+      if (!selectedWeekId) return;
+      const week = currentData.weeks.find(w => w.id === selectedWeekId);
+      if (!week) return;
+      week.lectureNotes = document.getElementById('noteArea').innerHTML;
+      saveData();
+    }
+
+    /* =============================================
+       퀴즈 탭 렌더링
+    ============================================= */
+    function renderQuizTab(week) {
+      const btn = document.getElementById('quizToggleBtn');
+      btn.textContent = week.quiz.completed ? '✓ 완료' : '미완료';
+      btn.className   = 'quiz-toggle ' + (week.quiz.completed ? 'done' : 'undone');
+      renderWrongList(week);
+    }
+
+    /* =============================================
+       퀴즈/세트 완료 토글
+    ============================================= */
+    function toggleQuiz() {
+      const week = currentData.weeks.find(w => w.id === selectedWeekId);
+      if (!week) return;
+      week.quiz.completed = !week.quiz.completed;
+      saveData();
+      renderQuizTab(week);
+      if (week.quiz.completed) { recordStudy(); addXP(20); }
+    }
+
+    /* =============================================
+       틀린 문제 추가
+    ============================================= */
+    function addWrongAnswer() {
+      const input = document.getElementById('wrongInput');
+      const memo  = input.value.trim();
+      if (!memo) return;
+
+      const week = currentData.weeks.find(w => w.id === selectedWeekId);
+      if (!week) return;
+
+      week.quiz.wrongAnswers.push({
+        id: 'wa_' + Date.now(),
+        memo: memo,
+        mastered: false,
+      });
+
+      input.value = '';
+      saveData();
+      recordStudy();
+      renderWrongList(week);
+    }
+
+    /* =============================================
+       틀린 문제 목록 렌더링
+    ============================================= */
+    function renderWrongList(week) {
+      const list = document.getElementById('wrongList');
+      list.innerHTML = '';
+
+      if (!week.quiz.wrongAnswers.length) {
+        list.innerHTML = `<div style="color:rgba(255,255,255,0.2);font-size:13px;padding:8px 0">
+          아직 추가된 틀린 문제가 없어요 🎉
+        </div>`;
+        return;
+      }
+
+      week.quiz.wrongAnswers.forEach(wa => {
+        const item = document.createElement('div');
+        item.className = 'wrong-item' + (wa.mastered ? ' mastered' : '');
+        item.innerHTML = `
+          <span class="wrong-memo">${wa.memo}</span>
+          <button class="wrong-master-btn" onclick="toggleMastered('${wa.id}')">
+            ${wa.mastered ? '↩ 되돌리기' : '✓ 이해함'}
+          </button>
+          <button class="wrong-del-btn" onclick="deleteWrong('${wa.id}')">×</button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    /* =============================================
+       틀린 문제 이해 완료 토글 (+15 XP)
+    ============================================= */
+    function toggleMastered(waId) {
+      const week = currentData.weeks.find(w => w.id === selectedWeekId);
+      const wa   = week.quiz.wrongAnswers.find(w => w.id === waId);
+      if (!wa) return;
+      wa.mastered = !wa.mastered;
+      saveData();
+      renderWrongList(week);
+      if (wa.mastered) { recordStudy(); addXP(15); }
+    }
+
+    /* =============================================
+       틀린 문제 삭제
+    ============================================= */
+    function deleteWrong(waId) {
+      const week = currentData.weeks.find(w => w.id === selectedWeekId);
+      week.quiz.wrongAnswers = week.quiz.wrongAnswers.filter(w => w.id !== waId);
+      saveData();
+      renderWrongList(week);
+    }
+
+    /* =============================================
+       주차 완료 버튼 (+50 XP)
+    ============================================= */
+    function toggleWeekComplete() {
+      const week = currentData.weeks.find(w => w.id === selectedWeekId);
+      if (!week) return;
+      week.completed = !week.completed;
+      saveData();
+      renderWeeks();
+      renderCompleteBtn(week);
+      if (week.completed) { recordStudy(); addXP(50); }
+    }
+
+    function renderCompleteBtn(week) {
+      const btn  = document.getElementById('completeBtn');
+      const hint = document.getElementById('completeHint');
+      btn.className   = 'complete-btn ' + (week.completed ? 'done' : 'undone');
+      btn.textContent = week.completed ? '✓ 완료됨 (취소하기)' : '✓ 주차 완료';
+      hint.textContent = week.completed ? '잘하고 있어요! 계속 가세요 🚀' : '완료 시 +50 XP 획득!';
+    }
+
+    /* =============================================
+       주차 추가 / 수정 모달
+       - editingWeekId가 null이면 "추가" 모드
+       - editingWeekId가 있으면 "수정" 모드
+    ============================================= */
+    let editingWeekId = null; // 수정 중인 주차 ID (null = 추가 모드)
+
+    function openWeekModal() {
+      // 추가 모드로 열기
+      editingWeekId = null;
+      document.getElementById('weekModalTitle').textContent = '새 주차 추가';
+      document.getElementById('weekModalConfirm').textContent = '추가';
+      document.getElementById('weekNameInput').value = '';
+      document.getElementById('weekModal').classList.add('show');
+      setTimeout(() => document.getElementById('weekNameInput').focus(), 100);
+    }
+
+    function editWeek(id) {
+      // 수정 모드로 열기 — 기존 이름을 input에 채워줌
+      const week = currentData.weeks.find(w => w.id === id);
+      if (!week) return;
+      editingWeekId = id;
+      document.getElementById('weekModalTitle').textContent = '주차 이름 수정';
+      document.getElementById('weekModalConfirm').textContent = '수정';
+      document.getElementById('weekNameInput').value = week.title;
+      document.getElementById('weekModal').classList.add('show');
+      setTimeout(() => document.getElementById('weekNameInput').focus(), 100);
+    }
+
+    function closeWeekModal() {
+      document.getElementById('weekModal').classList.remove('show');
+      editingWeekId = null;
+    }
+
+    document.getElementById('weekModal').addEventListener('click', function(e) {
+      if (e.target === this) closeWeekModal();
+    });
+
+    document.getElementById('weekNameInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') confirmWeekModal();
+    });
+
+    // 추가/수정 통합 처리 함수
+    function confirmWeekModal() {
+      const name = document.getElementById('weekNameInput').value.trim();
+      if (!name) return;
+
+      if (editingWeekId) {
+        // 수정 모드 — 기존 주차의 이름만 변경
+        const week = currentData.weeks.find(w => w.id === editingWeekId);
+        if (week) week.title = name;
+      } else {
+        // 추가 모드 — 새 주차 생성
+        currentData.weeks.push({
+          id:           'w_' + Date.now(),
+          title:        name,
+          completed:    false,
+          lectureUrl:   '',
+          lectureNotes: '',
+          quiz: { completed: false, wrongAnswers: [] },
+        });
+      }
+
+      saveData();
+      renderWeeks();
+      closeWeekModal();
+    }
+
+    /* =============================================
+       주차 삭제
+       - 삭제한 주차가 현재 선택 중이면 선택 해제
+    ============================================= */
+    function deleteWeek(id) {
+      const week = currentData.weeks.find(w => w.id === id);
+      if (!confirm(`"${week.title}"을 삭제할까요?\n⚠️ 노트와 틀린 문제가 모두 사라져요!`)) return;
+
+      currentData.weeks = currentData.weeks.filter(w => w.id !== id);
+
+      // 삭제된 주차가 선택 중이었으면 빈 화면으로
+      if (selectedWeekId === id) {
+        selectedWeekId = null;
+        showEmpty();
+      }
+
+      saveData();
+      renderWeeks();
+    }
+
+    /* =============================================
+       bfcache 대응 (뒤로가기로 돌아와도 데이터 새로고침)
+    ============================================= */
+    window.addEventListener('pageshow', async function(e) {
+      if (e.persisted) {
+        currentData = await loadData(currentTrack);
+        renderGamification();
+        renderWeeks();
+        if (selectedWeekId) showWeekContent();
+      }
+    });
+
+    /* =============================================
+       페이지 초기화
+    ============================================= */
+    async function init() {
+      if (!subjectId || !semId || !SUBJECT_INFO[subjectId]) {
+        document.body.innerHTML = `
+          <div style="padding:40px;color:#fff;font-family:'DM Sans',sans-serif">
+            잘못된 접근이에요.
+            <a href="university.html" style="color:#818cf8">← 대학공부로 돌아가기</a>
+          </div>`;
+        return;
+      }
+      const info = SUBJECT_INFO[subjectId];
+      document.getElementById('subjectIcon').textContent = info.icon;
+      document.getElementById('subjectName').textContent = info.name;
+      document.title = info.name + ' — MIND OS';
+      if (isCoding) document.getElementById('trackTabs').style.display = 'flex';
+      currentData = await loadData(currentTrack);
+      renderGamification();
+      renderWeeks();
+    }
+
+    init();
+  </script>
+
+</body>
+</html>

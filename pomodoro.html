@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>뽀모도로 — MIND OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+
+  <!-- Firebase SDK — Firestore에 세션 기록 저장 -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* ── 기본 리셋 ── */
+    *{ margin:0; padding:0; box-sizing:border-box; }
+    body{
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      background: #f5f0ff;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+    }
+
+    /* ── 페이지 진입 애니메이션 ── */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(14px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    body { animation: fadeUp .35s cubic-bezier(.4,0,.2,1); }
+
+    /* ── 배경 blob ── */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(72px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.45;
+    }
+    /* 모드별로 blob 색이 달라짐 — JS로 클래스 바꿔서 전환 */
+    body.mode-focus   .b1 { background: #c4b5fd; }
+    body.mode-focus   .b2 { background: #e9d5ff; }
+    body.mode-focus   .b3 { background: #ddd6fe; }
+    body.mode-short   .b1 { background: #a7f3d0; }
+    body.mode-short   .b2 { background: #d1fae5; }
+    body.mode-short   .b3 { background: #bbf7d0; }
+    body.mode-long    .b1 { background: #bae6fd; }
+    body.mode-long    .b2 { background: #e0f2fe; }
+    body.mode-long    .b3 { background: #dbeafe; }
+    .b1 { width:420px; height:420px; background:#c4b5fd; top:-100px;  left:-80px;  animation:bm1 10s ease-in-out infinite; transition:background 1s; }
+    .b2 { width:340px; height:340px; background:#e9d5ff; top:40px;    right:-70px; animation:bm2 13s ease-in-out infinite; transition:background 1s; }
+    .b3 { width:300px; height:300px; background:#ddd6fe; bottom:-70px;left:28%;    animation:bm3 11s ease-in-out infinite; transition:background 1s; }
+    @keyframes bm1 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(20px,25px) scale(1.05)} }
+    @keyframes bm2 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(-18px,20px) scale(0.97)} }
+    @keyframes bm3 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(15px,-20px) scale(1.03)} }
+
+    /* ── 뒤로가기 버튼 ── */
+    .back-btn {
+      position: relative;
+      z-index: 10;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(196,181,253,0.5);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 16px;
+      align-self: flex-start;
+      transition: all .2s;
+      color: #6d28d9;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .back-btn:hover { background:rgba(255,255,255,.95); transform:translateX(-3px); }
+
+    /* ── 메인 래퍼 ── */
+    .wrap {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* ── 헤더 ── */
+    .page-header { text-align: center; }
+    .page-badge {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 3px 13px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      font-weight: 500;
+      background: #ede9fe;
+      color: #6d28d9;
+      border: 1px solid #c4b5fd;
+    }
+    .page-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(22px, 5vw, 30px);
+      font-style: italic;
+      background: linear-gradient(135deg, #a855f7, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── 모드 선택 탭 ── */
+    .mode-tabs {
+      display: flex;
+      gap: 8px;
+      background: rgba(255,255,255,.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(196,181,253,0.4);
+      border-radius: 16px;
+      padding: 5px;
+    }
+    .mode-tab {
+      padding: 7px 18px;
+      border-radius: 12px;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .22s cubic-bezier(.4,0,.2,1);
+      color: #7c3aed;
+      border: none;
+      background: transparent;
+      font-family: 'DM Sans', sans-serif;
+      white-space: nowrap;
+    }
+    /* 활성 탭 — 모드별로 색 다름 */
+    .mode-tab.active-focus { background: #7c3aed; color: white; box-shadow: 0 2px 10px rgba(124,58,237,0.3); }
+    .mode-tab.active-short { background: #10b981; color: white; box-shadow: 0 2px 10px rgba(16,185,129,0.3); }
+    .mode-tab.active-long  { background: #0ea5e9; color: white; box-shadow: 0 2px 10px rgba(14,165,233,0.3); }
+
+    /* ── 타이머 원형 카드 ── */
+    .timer-card {
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(20px);
+      border: 1.5px solid rgba(255,255,255,.95);
+      border-radius: 32px;
+      padding: 36px 32px 28px;
+      box-shadow: 0 8px 32px rgba(109,40,217,0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      width: 100%;
+    }
+
+    /* ── SVG 원형 프로그레스 바 ── */
+    .timer-ring-wrap { position: relative; width: 220px; height: 220px; }
+
+    /* SVG 원형 — 배경 링과 진행 링 두 개로 구성 */
+    .ring-svg { transform: rotate(-90deg); }  /* -90deg 회전해야 12시 방향에서 시작 */
+    .ring-bg {
+      fill: none;
+      stroke: rgba(196,181,253,0.2);
+      stroke-width: 10;
+    }
+    .ring-progress {
+      fill: none;
+      stroke: #7c3aed;          /* 집중 모드: 보라 */
+      stroke-width: 10;
+      stroke-linecap: round;
+      /* stroke-dasharray/offset은 JS로 계산해서 넣음 */
+      transition: stroke 1s, stroke-dashoffset 1s linear;
+    }
+
+    /* 원 가운데 시간 표시 영역 */
+    .timer-center {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    .timer-display {
+      font-size: 52px;
+      font-weight: 300;
+      color: #2d1b69;
+      letter-spacing: -1px;
+      line-height: 1;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .timer-mode-label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #a78bfa;
+      margin-top: 6px;
+    }
+
+    /* ── 컨트롤 버튼 영역 ── */
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    /* 시작/일시정지 큰 버튼 */
+    .btn-main {
+      padding: 13px 44px;
+      border-radius: 16px;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all .2s cubic-bezier(.4,0,.2,1);
+      letter-spacing: .5px;
+    }
+    .btn-main.start  { background: #7c3aed; color: white; box-shadow: 0 4px 16px rgba(124,58,237,0.35); }
+    .btn-main.start:hover  { background: #6d28d9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,58,237,0.45); }
+    .btn-main.pause  { background: #e9d5ff; color: #6d28d9; }
+    .btn-main.pause:hover  { background: #ddd6fe; transform: translateY(-2px); }
+    /* 초기화 작은 버튼 */
+    .btn-reset {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      border: 1.5px solid rgba(196,181,253,0.5);
+      background: rgba(255,255,255,.8);
+      font-size: 16px;
+      cursor: pointer;
+      transition: all .2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .btn-reset:hover { background: #f5f0ff; transform: rotate(90deg); }
+
+    /* ── 세션 카운터 ── */
+    .session-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    /* 토마토 아이콘들 — 완료된 세션 수 시각화 */
+    .tomato-dot {
+      font-size: 16px;
+      opacity: 0.25;
+      transition: opacity .3s, transform .3s;
+    }
+    .tomato-dot.done { opacity: 1; transform: scale(1.15); }
+    .session-label {
+      font-size: 12px;
+      color: #7c3aed;
+      font-weight: 500;
+      margin-left: 4px;
+      opacity: .7;
+    }
+
+    /* ── 오늘 통계 카드 ── */
+    .stats-card {
+      background: rgba(255,255,255,.75);
+      backdrop-filter: blur(16px);
+      border: 1.5px solid rgba(255,255,255,.9);
+      border-radius: 22px;
+      padding: 18px 24px;
+      box-shadow: 0 4px 16px rgba(109,40,217,0.06);
+      width: 100%;
+      display: flex;
+      gap: 0;
+    }
+    .stat-item {
+      flex: 1;
+      text-align: center;
+      /* 가운데 구분선 효과 */
+    }
+    .stat-item + .stat-item {
+      border-left: 1px solid rgba(196,181,253,0.3);
+    }
+    .stat-num {
+      font-size: 26px;
+      font-weight: 600;
+      color: #5b21b6;
+      font-family: 'DM Sans', sans-serif;
+      line-height: 1;
+    }
+    .stat-lbl {
+      font-size: 11px;
+      color: #a78bfa;
+      margin-top: 5px;
+      letter-spacing: .5px;
+    }
+
+    /* ── 토스트 알림 ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(30,10,60,.92);
+      backdrop-filter: blur(14px);
+      color: white;
+      padding: 13px 22px;
+      border-radius: 18px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transition: all .3s cubic-bezier(.4,0,.2,1);
+      pointer-events: none;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body class="mode-focus">
+
+  <!-- 배경 blob -->
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <!-- 토스트 알림 -->
+  <div id="toast"></div>
+
+  <!-- 뒤로가기 -->
+  <button class="back-btn" onclick="location.href='yourspace.html'">← Your Space</button>
+
+  <div class="wrap">
+
+    <!-- 헤더 -->
+    <div class="page-header">
+      <div class="page-badge">🍅 Focus Timer</div>
+      <div class="page-title">뽀모도로 타이머</div>
+    </div>
+
+    <!-- 모드 탭: 집중 / 짧은 휴식 / 긴 휴식 -->
+    <div class="mode-tabs">
+      <button class="mode-tab active-focus" id="tab-focus"  onclick="switchMode('focus')">🎯 집중</button>
+      <button class="mode-tab"              id="tab-short"  onclick="switchMode('short')">☕ 짧은 휴식</button>
+      <button class="mode-tab"              id="tab-long"   onclick="switchMode('long')">🛌 긴 휴식</button>
+    </div>
+
+    <!-- 타이머 카드 -->
+    <div class="timer-card">
+
+      <!-- 원형 프로그레스 링 -->
+      <div class="timer-ring-wrap">
+        <!-- viewBox: 220×220, 중심(110,110), 반지름 100 -->
+        <svg class="ring-svg" width="220" height="220" viewBox="0 0 220 220">
+          <!-- 배경 원 (회색) -->
+          <circle class="ring-bg" cx="110" cy="110" r="100"/>
+          <!-- 진행 원 — stroke-dasharray = 원둘레(2πr ≈ 628), JS로 offset 계산 -->
+          <circle class="ring-progress" id="ring" cx="110" cy="110" r="100"
+            stroke-dasharray="628" stroke-dashoffset="0"/>
+        </svg>
+        <!-- 원 가운데: 남은 시간 + 모드 이름 -->
+        <div class="timer-center">
+          <div class="timer-display" id="time-display">25:00</div>
+          <div class="timer-mode-label" id="mode-label">집중</div>
+        </div>
+      </div>
+
+      <!-- 버튼: 시작/일시정지 + 초기화 -->
+      <div class="controls">
+        <button class="btn-main start" id="btn-main" onclick="toggleTimer()">시작</button>
+        <button class="btn-reset" onclick="resetTimer()" title="초기화">↺</button>
+      </div>
+
+      <!-- 세션 카운터: 토마토 4개 — 4세션마다 긴 휴식 -->
+      <div class="session-row">
+        <span class="tomato-dot" id="dot0">🍅</span>
+        <span class="tomato-dot" id="dot1">🍅</span>
+        <span class="tomato-dot" id="dot2">🍅</span>
+        <span class="tomato-dot" id="dot3">🍅</span>
+        <span class="session-label" id="session-label">0 / 4 세션</span>
+      </div>
+
+    </div>
+
+    <!-- 오늘 통계 카드 -->
+    <div class="stats-card">
+      <div class="stat-item">
+        <div class="stat-num" id="stat-sessions">0</div>
+        <div class="stat-lbl">오늘 세션</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" id="stat-minutes">0</div>
+        <div class="stat-lbl">집중 분</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" id="stat-streak">0</div>
+        <div class="stat-lbl">연속 세션</div>
+      </div>
+    </div>
+
+  </div><!-- /.wrap -->
+
+  <script>
+    // ── Firebase 초기화 ──
+    firebase.initializeApp({
+      apiKey: "AIzaSyBC_aeuuKXoJIodrmfeQ52bvWpzcZMrtPM",
+      authDomain: "mind-os-b23a5.firebaseapp.com",
+      projectId: "mind-os-b23a5",
+      storageBucket: "mind-os-b23a5.firebasestorage.app",
+      messagingSenderId: "88544003760",
+      appId: "1:88544003760:web:58af8d47183d2e259d9d75"
+    });
+    const db = firebase.firestore();
+
+    // ── 뽀모도로 모드 설정 (분 단위) ──
+    // 마치 게임의 레벨 설정처럼 — 모드마다 시간과 색이 다름
+    const MODES = {
+      focus: { label: '집중',    minutes: 25, ringColor: '#7c3aed', bodyClass: 'mode-focus' },
+      short: { label: '짧은 휴식', minutes: 5,  ringColor: '#10b981', bodyClass: 'mode-short' },
+      long:  { label: '긴 휴식',  minutes: 15, ringColor: '#0ea5e9', bodyClass: 'mode-long'  },
+    };
+
+    // ── 타이머 상태 변수 ──
+    let currentMode   = 'focus';   // 현재 모드
+    let totalSeconds  = 25 * 60;   // 전체 시간(초)
+    let leftSeconds   = 25 * 60;   // 남은 시간(초)
+    let isRunning     = false;      // 타이머 동작 중인지
+    let intervalId    = null;       // setInterval 참조 (나중에 clear 하기 위해)
+    let sessionCount  = 0;          // 4세션 주기 내 완료 수 (0~3)
+    const CIRCUMFERENCE = 628;      // 2 × π × 100 ≈ 628 (원 둘레)
+
+    // ── 오늘 통계 (localStorage에서 불러옴) ──
+    // 날짜가 바뀌면 자동으로 초기화되도록 날짜 키 포함
+    let todayKey = new Date().toISOString().slice(0, 10);  // "2026-04-09" 형태
+    let stats = loadStats();
+
+    // ── 페이지 로드 시 통계 표시 ──
+    renderStats();
+
+    // ────────────────────────────────
+    //  모드 전환 함수
+    //  마치 채널을 돌리는 것처럼 — 모드 바꾸면 시간, 색, 탭 모두 바뀜
+    // ────────────────────────────────
+    function switchMode(mode) {
+      // 타이머 실행 중이면 일단 멈춤
+      if (isRunning) pauseTimer();
+
+      currentMode  = mode;
+      const cfg    = MODES[mode];
+
+      // 전체/남은 시간 리셋
+      totalSeconds = cfg.minutes * 60;
+      leftSeconds  = totalSeconds;
+
+      // 화면 업데이트
+      updateDisplay();
+      updateRing();
+      document.getElementById('mode-label').textContent = cfg.label;
+      document.getElementById('ring').style.stroke = cfg.ringColor;
+
+      // blob 색 전환 — body 클래스 바꾸면 CSS가 알아서 색 바꿔줌
+      document.body.className = cfg.bodyClass;
+
+      // 탭 활성 표시 — 모든 탭 초기화 후 현재 탭만 활성
+      ['focus','short','long'].forEach(m => {
+        const tab = document.getElementById(`tab-${m}`);
+        tab.className = 'mode-tab';  // 기존 active 클래스 제거
+      });
+      document.getElementById(`tab-${mode}`).className = `mode-tab active-${mode}`;
+
+      // 버튼 텍스트도 "시작"으로 되돌림
+      const btn = document.getElementById('btn-main');
+      btn.textContent = '시작';
+      btn.className   = 'btn-main start';
+    }
+
+    // ────────────────────────────────
+    //  타이머 토글 (시작 ↔ 일시정지)
+    // ────────────────────────────────
+    function toggleTimer() {
+      if (isRunning) {
+        pauseTimer();
+      } else {
+        startTimer();
+      }
+    }
+
+    function startTimer() {
+      isRunning = true;
+      // 버튼을 "일시정지" 스타일로 바꿈
+      const btn = document.getElementById('btn-main');
+      btn.textContent = '일시정지';
+      btn.className   = 'btn-main pause';
+
+      // 1초마다 카운트다운 — setInterval은 마치 초시계처럼 1초씩 신호를 보냄
+      intervalId = setInterval(() => {
+        leftSeconds--;
+
+        if (leftSeconds <= 0) {
+          // 타이머 완료!
+          leftSeconds = 0;
+          clearInterval(intervalId);
+          isRunning = false;
+          onTimerEnd();
+        } else {
+          updateDisplay();
+          updateRing();
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      isRunning = false;
+      clearInterval(intervalId);
+      // 버튼 다시 "시작"으로
+      const btn = document.getElementById('btn-main');
+      btn.textContent = '계속';
+      btn.className   = 'btn-main start';
+    }
+
+    // ────────────────────────────────
+    //  타이머 초기화
+    // ────────────────────────────────
+    function resetTimer() {
+      if (isRunning) pauseTimer();
+      leftSeconds = totalSeconds;
+      updateDisplay();
+      updateRing();
+      // 버튼 다시 "시작"으로
+      const btn = document.getElementById('btn-main');
+      btn.textContent = '시작';
+      btn.className   = 'btn-main start';
+    }
+
+    // ────────────────────────────────
+    //  타이머 완료 시 처리
+    // ────────────────────────────────
+    function onTimerEnd() {
+      // 알림음 재생 — Web Audio API로 짧은 비프음 만들기
+      // 마치 피아노 건반처럼 — 주파수(Hz)가 음의 높이를 결정
+      playBeep();
+
+      updateDisplay();
+      updateRing();
+
+      // 버튼 다시 "시작"으로
+      const btn = document.getElementById('btn-main');
+      btn.textContent = '시작';
+      btn.className   = 'btn-main start';
+
+      // 집중 세션 완료 시에만 통계 기록
+      if (currentMode === 'focus') {
+        sessionCount = (sessionCount + 1) % 4;  // 0,1,2,3,0,1,2,3... 순환
+        updateSessionDots();
+
+        // 통계 업데이트
+        stats.sessions++;
+        stats.focusMinutes += MODES.focus.minutes;
+        stats.streak++;
+        saveStats(stats);
+        renderStats();
+
+        // 4세션 완료 시 긴 휴식 권유
+        if (sessionCount === 0) {
+          showToast('🎉 4세션 완료! 긴 휴식을 취해요.');
+          setTimeout(() => switchMode('long'), 1500);
+        } else {
+          showToast(`✅ 세션 완료! 짧게 쉬고 다시 해봐요.`);
+          setTimeout(() => switchMode('short'), 1500);
+        }
+      } else {
+        // 휴식 완료 → 다시 집중 모드로
+        showToast('☕ 휴식 완료! 다시 집중해볼까요?');
+        setTimeout(() => switchMode('focus'), 1500);
+      }
+    }
+
+    // ────────────────────────────────
+    //  화면 표시 업데이트
+    // ────────────────────────────────
+    function updateDisplay() {
+      // 남은 초를 "MM:SS" 형태로 변환
+      // 예: 1505초 → "25:05"
+      const m = Math.floor(leftSeconds / 60).toString().padStart(2, '0');
+      const s = (leftSeconds % 60).toString().padStart(2, '0');
+      document.getElementById('time-display').textContent = `${m}:${s}`;
+
+      // 브라우저 탭 제목도 바꿔줌 — 타이머를 다른 탭에 띄워놔도 확인 가능
+      document.title = `${m}:${s} — 뽀모도로`;
+    }
+
+    // ────────────────────────────────
+    //  원형 프로그레스 업데이트
+    //  원둘레(628px) 중 얼마나 채울지 계산
+    //  마치 시계 초침처럼 — 시간이 줄어들수록 링이 채워짐
+    // ────────────────────────────────
+    function updateRing() {
+      const ratio  = leftSeconds / totalSeconds;  // 남은 비율 (1.0 → 0.0)
+      // dashoffset = 둘레 × 비율: offset이 0이면 꽉 참, 628이면 아무것도 안 보임
+      const offset = CIRCUMFERENCE * ratio;
+      document.getElementById('ring').style.strokeDashoffset = offset;
+    }
+
+    // ────────────────────────────────
+    //  세션 토마토 점 업데이트
+    // ────────────────────────────────
+    function updateSessionDots() {
+      for (let i = 0; i < 4; i++) {
+        const dot = document.getElementById(`dot${i}`);
+        // sessionCount는 이미 % 4 처리된 값 — 0이면 방금 리셋된 것
+        // 직관적으로: 현재 주기에서 완료된 세션 수 = sessionCount
+        if (sessionCount === 0) {
+          // 4세션 완료 → 모두 꺼짐 (긴 휴식 시작)
+          dot.classList.remove('done');
+        } else {
+          i < sessionCount ? dot.classList.add('done') : dot.classList.remove('done');
+        }
+      }
+      document.getElementById('session-label').textContent =
+        `${sessionCount === 0 ? 4 : sessionCount} / 4 세션`;
+    }
+
+    // ────────────────────────────────
+    //  알림음 — Web Audio API
+    //  외부 파일 없이 브라우저에서 직접 소리 생성
+    // ────────────────────────────────
+    function playBeep() {
+      try {
+        // AudioContext = 소리 작업실, OscillatorNode = 음파 발생기
+        const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.type      = 'sine';    // 사인파 = 부드러운 음
+        osc.frequency.value = 880; // 880Hz = A5 음 (라)
+
+        // 소리가 급격히 끊기지 않도록 서서히 줄어드는 페이드 아웃
+        gain.gain.setValueAtTime(0.5, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.8);
+      } catch(e) {
+        // 소리 재생 실패해도 타이머는 계속 동작
+        console.log('알림음 재생 실패:', e);
+      }
+    }
+
+    // ────────────────────────────────
+    //  토스트 메시지 표시
+    // ────────────────────────────────
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    // ────────────────────────────────
+    //  통계 저장/불러오기
+    //  localStorage에 저장하고, 날짜가 바뀌면 초기화
+    //  Firestore에도 동기화 (다른 기기에서 확인 가능)
+    // ────────────────────────────────
+    function loadStats() {
+      try {
+        const raw = localStorage.getItem('mindos_pomodoro');
+        if (!raw) return defaultStats();
+        const saved = JSON.parse(raw);
+        // 날짜가 다르면 오늘 통계 초기화 (어제 기록은 그대로)
+        if (saved.date !== todayKey) return defaultStats();
+        return saved;
+      } catch(e) {
+        return defaultStats();
+      }
+    }
+
+    function defaultStats() {
+      return { date: todayKey, sessions: 0, focusMinutes: 0, streak: 0 };
+    }
+
+    function saveStats(data) {
+      // localStorage에 저장 (오프라인 폴백)
+      localStorage.setItem('mindos_pomodoro', JSON.stringify(data));
+      // Firestore에도 저장 (다른 기기 동기화)
+      db.collection('mindos').doc('pomodoro').set(data).catch(console.error);
+    }
+
+    function renderStats() {
+      document.getElementById('stat-sessions').textContent = stats.sessions;
+      document.getElementById('stat-minutes').textContent  = stats.focusMinutes;
+      document.getElementById('stat-streak').textContent   = stats.streak;
+    }
+
+    // ── Firestore에서 오늘 통계 불러오기 (다른 기기에서 저장한 데이터 반영) ──
+    async function syncFromFirestore() {
+      try {
+        const snap = await db.collection('mindos').doc('pomodoro').get();
+        if (snap.exists) {
+          const remote = snap.data();
+          // 날짜가 오늘이면 Firestore 데이터로 덮어씀
+          if (remote.date === todayKey) {
+            stats = remote;
+            localStorage.setItem('mindos_pomodoro', JSON.stringify(stats));
+            renderStats();
+          }
+        }
+      } catch(e) {
+        // Firestore 실패 → localStorage 유지
+        console.log('Firestore 동기화 실패, localStorage 사용');
+      }
+    }
+
+    // 페이지 로드 시 Firestore 동기화 (비동기 — 타이머 동작에 영향 없음)
+    syncFromFirestore();
+
+    // 초기 화면 렌더링
+    updateDisplay();
+    updateRing();
+  </script>
+
+</body>
+</html>

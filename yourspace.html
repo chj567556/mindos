@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Space — MIND OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+  <style>
+    /* ── 기본 리셋 ── */
+    *{ margin:0; padding:0; box-sizing:border-box; }
+    body{
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      background: #f5f0ff;  /* 메인과 동일한 보라 계열 배경 — 내 공간 느낌 */
+      overflow-x: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── 페이지 진입 애니메이션 ── */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(14px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    body { animation: fadeUp .35s cubic-bezier(.4,0,.2,1); }
+
+    /* ── 배경 blob — 보라/라벤더 계열로 따뜻한 느낌 ── */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(72px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.5;
+    }
+    .b1 { width:420px; height:420px; background:#c4b5fd; top:-100px;  left:-80px;  animation:bm1 10s ease-in-out infinite; }
+    .b2 { width:340px; height:340px; background:#e9d5ff; top:40px;    right:-70px; animation:bm2 13s ease-in-out infinite; }
+    .b3 { width:300px; height:300px; background:#ddd6fe; bottom:-70px;left:28%;    animation:bm3 11s ease-in-out infinite; }
+    @keyframes bm1 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(20px,25px) scale(1.05)} }
+    @keyframes bm2 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(-18px,20px) scale(0.97)} }
+    @keyframes bm3 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(15px,-20px) scale(1.03)} }
+
+    /* ── 뒤로가기 버튼 ── */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(196,181,253,0.5);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 22px;
+      transition: all .2s;
+      color: #6d28d9;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .back-btn:hover { background:rgba(255,255,255,.95); transform:translateX(-3px); }
+
+    /* ── 페이지 콘텐츠 영역 ── */
+    .sub-page-wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      width: 100%;
+      padding: 28px 14px 40px;
+    }
+
+    /* ── 헤더 ── */
+    .sub-header { margin-bottom: 26px; }
+    .sub-badge-el {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 3px 13px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      font-weight: 500;
+      background: #ede9fe;  /* 연보라 배지 */
+      color: #6d28d9;
+      border: 1px solid #c4b5fd;
+    }
+    .sub-h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(24px, 5vw, 34px);
+      font-weight: 600;
+      font-style: italic;
+      /* 보라 그라디언트 텍스트 */
+      background: linear-gradient(135deg, #a855f7, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .sub-desc {
+      font-size: 13.5px;
+      color: #4c1d95;
+      line-height: 1.72;
+      margin-top: 8px;
+      max-width: 540px;
+    }
+
+    /* ── 카테고리 카드 그리드 ── */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      width: 100%;
+    }
+
+    /* 카테고리 카드 — 유리 효과 */
+    .cat-card {
+      background: rgba(255,255,255,.84);
+      backdrop-filter: blur(16px);
+      border: 1.5px solid rgba(255,255,255,.95);
+      border-radius: 22px;
+      padding: 24px 20px 20px;
+      cursor: pointer;
+      transition: all .25s cubic-bezier(.4,0,.2,1);
+      box-shadow: 0 4px 18px rgba(109,40,217,0.07);
+      position: relative;
+      overflow: hidden;
+    }
+    .cat-card:hover { transform:translateY(-5px); box-shadow:0 12px 30px rgba(109,40,217,0.14); }
+
+    .cat-emoji { font-size:30px; margin-bottom:12px; display:block; }
+    .cat-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 17px;
+      font-weight: 600;
+      color: #0c1a2e;
+      margin-bottom: 4px;
+    }
+    .cat-hint { font-size:12px; color:#7c3aed; opacity:.8; line-height:1.6; }
+
+    /* 카드 우하단 화살표 */
+    .cat-arrow {
+      position: absolute;
+      bottom: 14px;
+      right: 16px;
+      font-size: 14px;
+      opacity: 0.3;
+      transition: opacity .2s, transform .2s;
+      color: #7c3aed;
+    }
+    .cat-card:hover .cat-arrow { opacity:.8; transform:translateX(3px); }
+
+    /* ── 토스트 알림 ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(30,10,60,.92);
+      backdrop-filter: blur(14px);
+      color: white;
+      padding: 13px 22px;
+      border-radius: 18px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transition: all .3s cubic-bezier(.4,0,.2,1);
+      pointer-events: none;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <!-- 배경 blob -->
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <!-- 토스트 알림 -->
+  <div id="toast"></div>
+
+  <div class="sub-page-wrap">
+
+    <!-- MIND OS 메인으로 돌아가기 -->
+    <button class="back-btn" onclick="location.href='mind_os.html'">← MIND OS</button>
+
+    <!-- 헤더 -->
+    <div class="sub-header">
+      <div class="sub-badge-el">✦ My Space</div>
+      <div class="sub-h2">Your Space</div>
+      <div class="sub-desc">집중하고, 계획하고, 나를 위한 시간을 만들어요. 시간을 내 것으로 만들어가요.</div>
+    </div>
+
+    <!-- 카테고리 카드 2종 -->
+    <div class="cat-grid">
+
+      <!-- 시간표 — 추후 timetable.html 구현 예정 -->
+      <div class="cat-card" onclick="comingSoon('시간표')" style="border-top:4px solid #c4b5fd">
+        <span class="cat-emoji">📅</span>
+        <div class="cat-name">시간표</div>
+        <div class="cat-hint">일주일 시간표 · 투두리스트<br>일정 관리 · 블록 스케줄링</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+      <!-- 뽀모도로 타이머 → pomodoro.html 으로 이동 -->
+      <div class="cat-card" onclick="location.href='pomodoro.html'" style="border-top:4px solid #a78bfa">
+        <span class="cat-emoji">🍅</span>
+        <div class="cat-name">뽀모도로 타이머</div>
+        <div class="cat-hint">25분 집중 · 5분 휴식<br>세션 기록 · 집중력 향상</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // 아직 구현 안 된 카테고리 클릭 시 토스트 메시지 표시
+    function comingSoon(name) {
+      const t = document.getElementById('toast');
+      t.textContent = `🚧 ${name} — 곧 구현 예정이에요!`;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+  </script>
+
+</body>
+</html>

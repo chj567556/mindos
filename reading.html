@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>독서 트래커 — MIND OS</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,600&display=swap" rel="stylesheet"/>
+
+  <!-- Firebase SDK — 데이터를 PC↔폰 동기화하기 위해 사용 -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    // Firebase 초기화 — mind-os 프로젝트에 연결
+    firebase.initializeApp({
+      apiKey: "AIzaSyBC_aeuuKXoJIodrmfeQ52bvWpzcZMrtPM",
+      authDomain: "mind-os-b23a5.firebaseapp.com",
+      projectId: "mind-os-b23a5",
+      storageBucket: "mind-os-b23a5.firebasestorage.app",
+      messagingSenderId: "88544003760",
+      appId: "1:88544003760:web:58af8d47183d2e259d9d75"
+    });
+    const db = firebase.firestore();
+  </script>
+
+  <style>
+    /* ── 기본 리셋 ── */
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    /* ── 전체 배경 ── */
+    /* 어두운 보라 그라디언트 — 도서관 밤 분위기 */
+    body {
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      /* 밝기 올린 보라 그라디언트 — 기존보다 20~30% 더 밝은 보라 톤 */
+      background: linear-gradient(135deg, #1c1845, #463d8a, #332e62);
+      color: #fff;
+      overflow: hidden;  /* 각 뷰가 독립 스크롤하도록 전체 스크롤 막기 */
+    }
+
+    /* ── 배경 blob — 흐릿하게 떠다니는 빛 덩어리 ── */
+    /* opacity 0.15 → 0.28로 올려서 색감이 더 선명하게 보이도록 */
+    .bg-blob { position:fixed; border-radius:50%; filter:blur(90px); opacity:0.28; pointer-events:none; z-index:0; }
+    .b1 { width:600px; height:600px; background:#7c3aed; top:-150px; left:-150px; }
+    .b2 { width:450px; height:450px; background:#f59e0b; bottom:-100px; right:-80px; }  /* 앰버색 — 책/독서 감성 */
+    .b3 { width:300px; height:300px; background:#3b82f6; top:40%; left:50%; }
+
+    /* ══════════════════════════════
+       뷰 전환 — 책장 뷰 / 상세 뷰
+    ══════════════════════════════ */
+    /* 두 뷰 모두 전체 화면 차지, display 토글로 전환 */
+    #shelfView, #detailView {
+      position: relative; z-index:1;
+      width: 100%; height: 100vh;
+      display: flex; flex-direction: column;
+    }
+    #detailView { display:none; }  /* 처음엔 숨김 */
+
+    /* 뷰 전환 애니메이션 */
+    @keyframes slideIn {
+      from { opacity:0; transform:translateX(30px); }
+      to   { opacity:1; transform:translateX(0); }
+    }
+    .view-enter { animation: slideIn 0.3s cubic-bezier(0.4,0,0.2,1); }
+
+    /* ══════════════════════════════
+       공통 헤더
+    ══════════════════════════════ */
+    .header {
+      flex-shrink:0;
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 16px 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.25);
+      backdrop-filter: blur(12px);
+    }
+    .header-left { display:flex; align-items:center; gap:14px; }
+
+    /* 뒤로가기 버튼 — 둥근 유리 버튼 */
+    .back-btn {
+      display:flex; align-items:center; gap:6px;
+      padding:7px 14px;
+      background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.14);
+      border-radius:10px; color:rgba(255,255,255,0.65);
+      font-family:'DM Sans',sans-serif; font-size:13px;
+      cursor:pointer; text-decoration:none; transition:all 0.2s;
+    }
+    .back-btn:hover { background:rgba(255,255,255,0.15); color:#fff; }
+
+    /* 페이지 제목 */
+    .page-title {
+      font-family:'Playfair Display',serif;
+      font-size:20px; font-weight:600;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);  /* 골드 그라디언트 — 독서 감성 */
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      background-clip:text;
+    }
+
+    /* 책 추가 버튼 (헤더 오른쪽) */
+    .add-book-btn {
+      padding:9px 18px; border-radius:12px; border:none;
+      background:linear-gradient(135deg,#f59e0b,#d97706);  /* 앰버 버튼 */
+      color:#1a0f00; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .add-book-btn:hover { filter:brightness(1.1); transform:translateY(-1px); }
+
+    /* ══════════════════════════════
+       책장 뷰 — 카테고리 탭
+    ══════════════════════════════ */
+    .category-tabs {
+      flex-shrink:0;
+      display:flex; gap:8px; flex-wrap:wrap;
+      padding: 14px 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(0,0,0,0.15);
+    }
+
+    /* 카테고리 탭 버튼 */
+    .cat-tab {
+      padding:6px 16px; border-radius:20px;
+      border:1px solid rgba(255,255,255,0.15);
+      background:rgba(255,255,255,0.06);
+      color:rgba(255,255,255,0.55);
+      font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .cat-tab:hover { background:rgba(255,255,255,0.12); color:#fff; }
+    /* 선택된 탭 — 골드 강조 */
+    .cat-tab.active {
+      background:rgba(245,158,11,0.2);
+      border-color:rgba(245,158,11,0.5);
+      color:#fbbf24; font-weight:600;
+    }
+
+    /* ══════════════════════════════
+       책장 뷰 — 책 그리드
+    ══════════════════════════════ */
+    .shelf-area {
+      flex:1; overflow-y:auto;
+      padding: 28px;
+    }
+    /* 스크롤바 스타일링 */
+    .shelf-area::-webkit-scrollbar { width:6px; }
+    .shelf-area::-webkit-scrollbar-track { background:transparent; }
+    .shelf-area::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:3px; }
+
+    /* 책 그리드 — 책들이 나란히 늘어선 책장 느낌 */
+    .book-grid {
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 20px;
+    }
+
+    /* 개별 책 카드 — 세로 비율 (실제 책처럼) */
+    .book-card {
+      display:flex; flex-direction:column;
+      background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.1);
+      border-radius:14px; overflow:hidden;
+      cursor:pointer; transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+    .book-card:hover {
+      transform:translateY(-6px);
+      border-color:rgba(245,158,11,0.35);
+      box-shadow:0 12px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(245,158,11,0.15);
+    }
+
+    /* 책 표지 영역 — 2:3 비율 (실제 책 비율) */
+    .book-cover {
+      width:100%; aspect-ratio:2/3;
+      background:linear-gradient(135deg,#2d1b69,#1e3a5f);  /* 표지 없을 때 기본 배경 */
+      position:relative; overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+      flex-shrink:0;
+    }
+    /* 표지 이미지 */
+    .book-cover img { width:100%; height:100%; object-fit:cover; }
+    /* 표지 없을 때 보여주는 기본 아이콘 */
+    .cover-placeholder {
+      display:flex; flex-direction:column; align-items:center; gap:8px;
+      color:rgba(255,255,255,0.3);
+      font-size:12px; text-align:center; padding:16px;
+    }
+    .cover-placeholder .book-emoji { font-size:32px; }
+
+    /* 책 정보 (표지 아래) */
+    .book-info {
+      padding:12px; flex:1;
+      display:flex; flex-direction:column; gap:5px;
+    }
+    .book-title-text {
+      font-size:13px; font-weight:600; line-height:1.4;
+      color:#fff;
+      /* 긴 제목 2줄로 자르기 */
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    }
+    .book-author-text { font-size:11px; color:rgba(255,255,255,0.45); }
+    /* 카테고리 뱃지 */
+    .book-cat-badge {
+      display:inline-block; margin-top:4px;
+      padding:2px 9px; border-radius:10px;
+      font-size:10px; font-weight:600;
+      background:rgba(245,158,11,0.15);
+      border:1px solid rgba(245,158,11,0.25);
+      color:#fbbf24; align-self:flex-start;
+    }
+
+    /* 빈 상태 — 책이 한 권도 없을 때 */
+    .empty-state {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:12px; padding:80px 20px;
+      color:rgba(255,255,255,0.3);
+      text-align:center;
+    }
+    .empty-state .empty-icon { font-size:48px; opacity:0.6; }
+    .empty-state p { font-size:14px; line-height:1.6; }
+
+    /* ══════════════════════════════
+       책 상세 뷰 레이아웃
+    ══════════════════════════════ */
+    /* 좌우 2분할 패널 */
+    .detail-layout {
+      flex:1; display:flex; overflow:hidden;
+    }
+
+    /* 왼쪽: 책 정보 패널 */
+    .book-panel {
+      width:280px; flex-shrink:0;
+      display:flex; flex-direction:column;
+      border-right:1px solid rgba(255,255,255,0.08);
+      background:rgba(0,0,0,0.2);
+      overflow-y:auto;
+      padding:20px;
+      gap:16px;
+    }
+    .book-panel::-webkit-scrollbar { width:4px; }
+    .book-panel::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:2px; }
+
+    /* 왼쪽 패널: 큰 표지 이미지 */
+    .detail-cover {
+      width:100%; aspect-ratio:2/3;
+      background:linear-gradient(135deg,#2d1b69,#1e3a5f);
+      border-radius:12px; overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; position:relative;
+      border:2px solid rgba(255,255,255,0.1);
+      transition:border-color 0.2s;
+    }
+    .detail-cover:hover { border-color:rgba(245,158,11,0.4); }
+    /* 표지 이미지 호버 시 "클릭해서 변경" 오버레이 */
+    .detail-cover .cover-overlay {
+      position:absolute; inset:0;
+      background:rgba(0,0,0,0.55);
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; color:#fbbf24; font-weight:600;
+      opacity:0; transition:opacity 0.2s;
+    }
+    .detail-cover:hover .cover-overlay { opacity:1; }
+    .detail-cover img { width:100%; height:100%; object-fit:cover; }
+
+    /* 숨겨진 파일 입력 — 표지 업로드용 */
+    #coverInput { display:none; }
+
+    /* 책 제목/저자 인라인 편집 — 클릭하면 수정 가능 */
+    .editable-title {
+      font-family:'Playfair Display',serif; font-size:17px; font-weight:600;
+      color:#fff; line-height:1.4;
+      background:transparent; border:none; outline:none;
+      width:100%; resize:none; cursor:text;
+      font-family:'Playfair Display',serif;
+    }
+    .editable-author {
+      font-size:12px; color:rgba(255,255,255,0.5);
+      background:transparent; border:none; outline:none;
+      width:100%; cursor:text;
+      font-family:'DM Sans',sans-serif;
+    }
+    /* 편집 가능 필드 — 호버 시 테두리 힌트 */
+    .editable-title:hover, .editable-author:hover {
+      background:rgba(255,255,255,0.04);
+      border-radius:6px;
+    }
+    .editable-title:focus, .editable-author:focus {
+      background:rgba(255,255,255,0.07);
+      border-radius:6px; padding:2px 6px;
+    }
+
+    /* 카테고리 선택 드롭다운 */
+    .cat-select {
+      width:100%; padding:8px 10px; border-radius:8px;
+      background:rgba(255,255,255,0.07);
+      border:1px solid rgba(255,255,255,0.12);
+      color:#fff; font-family:'DM Sans',sans-serif; font-size:12px;
+      cursor:pointer; outline:none;
+    }
+    .cat-select option { background:#1e1b4b; color:#fff; }
+
+    /* 구분선 */
+    .divider {
+      height:1px; background:rgba(255,255,255,0.08); margin:4px 0;
+    }
+
+    /* 날짜 섹션 레이블 */
+    .panel-label {
+      font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+      color:rgba(255,255,255,0.3); font-weight:600;
+    }
+
+    /* 날짜 입력 필드 */
+    .date-input {
+      width:100%; padding:8px 10px; border-radius:8px;
+      background:rgba(255,255,255,0.07);
+      border:1px solid rgba(255,255,255,0.12);
+      color:#fff; font-family:'DM Sans',sans-serif; font-size:12px;
+      outline:none; cursor:pointer; transition:border-color 0.2s;
+    }
+    .date-input:focus { border-color:rgba(245,158,11,0.5); }
+    /* 날짜 피커 아이콘 색상 */
+    .date-input::-webkit-calendar-picker-indicator { filter:invert(1) opacity(0.5); cursor:pointer; }
+
+    /* 읽은 기간 표시 (계산값) */
+    .reading-duration {
+      font-size:12px; color:#fbbf24; font-weight:500; text-align:center;
+    }
+
+    /* 삭제 버튼 */
+    .delete-book-btn {
+      margin-top:auto; padding:9px; border-radius:10px; border:none;
+      background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25);
+      color:#fca5a5; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .delete-book-btn:hover { background:rgba(239,68,68,0.25); }
+
+    /* ══════════════════════════════
+       오른쪽: 노트 패널
+    ══════════════════════════════ */
+    .notes-panel {
+      flex:1; display:flex; flex-direction:column;
+      overflow:hidden;
+    }
+
+    /* 노트 툴바 — 서식 버튼들 */
+    .note-toolbar {
+      flex-shrink:0;
+      display:flex; gap:5px; flex-wrap:wrap;
+      padding:10px 16px;
+      border-bottom:1px solid rgba(255,255,255,0.08);
+      background:rgba(0,0,0,0.15);
+    }
+    .toolbar-btn {
+      padding:5px 11px; border-radius:7px; border:none;
+      background:rgba(255,255,255,0.08);
+      color:rgba(255,255,255,0.65);
+      font-family:'DM Sans',sans-serif; font-size:12px;
+      cursor:pointer; transition:all 0.15s;
+    }
+    .toolbar-btn:hover { background:rgba(255,255,255,0.15); color:#fff; }
+    .toolbar-btn.danger { background:rgba(239,68,68,0.1); color:#fca5a5; border:1px solid rgba(239,68,68,0.2); }
+    .toolbar-btn.danger:hover { background:rgba(239,68,68,0.25); }
+
+    /* 자유 노트 영역 — subject.html과 동일 패턴 */
+    .note-area {
+      flex:1; overflow-y:auto;
+      padding:20px 24px;
+      outline:none;
+      font-size:14px; line-height:1.8;
+      color:rgba(255,255,255,0.85);
+    }
+    /* 빈 노트일 때 안내 텍스트 */
+    .note-area:empty::before {
+      content: '이 책에 대한 생각, 인상 깊은 구절, 독서 메모를 자유롭게 작성하세요 ✏️\n이미지도 Ctrl+V로 붙여넣기 가능해요!';
+      color:rgba(255,255,255,0.22); pointer-events:none;
+      white-space:pre-line;
+    }
+    /* 노트 안에 있는 이미지 스타일 */
+    .note-area img { max-width:100%; border-radius:8px; margin:6px 0; display:block; cursor:pointer; }
+    /* 스크롤바 */
+    .note-area::-webkit-scrollbar { width:6px; }
+    .note-area::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+
+    /* ── 이미지 클릭 툴바 — subject.html과 동일 패턴 ── */
+    /* 이미지를 클릭하면 그 이미지 위에 떠서 나타나는 조작 패널 */
+    #imgToolbar {
+      position: fixed;          /* 화면 기준으로 위치 — 스크롤에 무관 */
+      z-index: 500;
+      background: rgba(20,18,50,0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      padding: 8px 10px;
+      display: none;            /* 기본은 숨김 — JS가 .visible 클래스 붙여서 보여줌 */
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    #imgToolbar.visible { display: flex; }
+
+    /* 툴바 버튼 한 줄 묶음 */
+    .img-tb-row { display:flex; gap:5px; }
+    .img-tb-btn {
+      padding:5px 12px; border-radius:7px;
+      border:1px solid rgba(255,255,255,0.12);
+      background:rgba(255,255,255,0.07);
+      color:rgba(255,255,255,0.65);
+      font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500;
+      cursor:pointer; transition:all 0.15s;
+    }
+    .img-tb-btn:hover { background:rgba(245,158,11,0.2); color:#fbbf24; border-color:rgba(245,158,11,0.4); }
+    .img-tb-btn.active { background:rgba(245,158,11,0.35); color:#fbbf24; border-color:rgba(245,158,11,0.6); }
+
+    /* ══════════════════════════════
+       책 추가 모달
+    ══════════════════════════════ */
+    .modal-overlay {
+      position:fixed; inset:0;
+      background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
+      z-index:200; display:flex; align-items:center; justify-content:center;
+      opacity:0; pointer-events:none; transition:opacity 0.2s;
+    }
+    .modal-overlay.show { opacity:1; pointer-events:all; }
+
+    .modal {
+      background:#1e1b4b; border:1px solid rgba(255,255,255,0.14);
+      border-radius:20px; padding:28px; width:380px;
+      transform:scale(0.95); transition:transform 0.2s cubic-bezier(0.4,0,0.2,1);
+      max-height:90vh; overflow-y:auto;
+    }
+    .modal-overlay.show .modal { transform:scale(1); }
+
+    .modal-title {
+      font-family:'Playfair Display',serif; font-size:20px; margin-bottom:20px;
+      background:linear-gradient(135deg,#fbbf24,#f59e0b);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    }
+
+    /* 모달 내 커버 업로드 영역 */
+    .modal-cover-upload {
+      width:100px; aspect-ratio:2/3; margin:0 auto 16px;
+      background:rgba(255,255,255,0.06);
+      border:2px dashed rgba(245,158,11,0.3);
+      border-radius:10px; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:4px;
+      cursor:pointer; transition:all 0.2s; overflow:hidden;
+    }
+    .modal-cover-upload:hover { border-color:rgba(245,158,11,0.6); background:rgba(245,158,11,0.06); }
+    .modal-cover-upload img { width:100%; height:100%; object-fit:cover; }
+    .modal-cover-upload .upload-hint { font-size:10px; color:rgba(255,255,255,0.35); text-align:center; }
+    .modal-cover-upload .upload-icon { font-size:24px; }
+
+    /* 모달 폼 그룹 */
+    .modal-group { margin-bottom:14px; }
+    .modal-label { font-size:11px; color:rgba(255,255,255,0.4); margin-bottom:5px; letter-spacing:0.5px; }
+
+    .modal-input, .modal-select {
+      width:100%; padding:10px 13px;
+      background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.14);
+      border-radius:10px; color:#fff;
+      font-family:'DM Sans',sans-serif; font-size:13px;
+      outline:none; transition:border-color 0.2s;
+    }
+    .modal-input:focus, .modal-select:focus { border-color:rgba(245,158,11,0.5); }
+    .modal-input::placeholder { color:rgba(255,255,255,0.25); }
+    .modal-select option { background:#1e1b4b; }
+
+    /* 날짜 2개 나란히 */
+    .date-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+    /* 모달 버튼 행 */
+    .modal-btns { display:flex; gap:10px; margin-top:18px; }
+    .modal-btn {
+      flex:1; padding:11px; border-radius:10px; border:none;
+      font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .modal-btn.cancel { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.55); }
+    .modal-btn.confirm { background:linear-gradient(135deg,#f59e0b,#d97706); color:#1a0f00; }
+    .modal-btn.confirm:hover { filter:brightness(1.1); }
+
+    /* ── 토스트 알림 (하단 중앙) ── */
+    #toast {
+      position:fixed; bottom:24px; left:50%;
+      transform:translateX(-50%) translateY(20px);
+      background:rgba(20,18,50,0.95); backdrop-filter:blur(12px);
+      color:#fff; padding:11px 20px; border-radius:14px;
+      font-size:13px; font-weight:500;
+      opacity:0; transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+      pointer-events:none; z-index:999;
+    }
+    #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+    /* ── 반응형 — 모바일 ── */
+    @media (max-width:640px) {
+      .book-grid { grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:14px; }
+      .shelf-area { padding:16px; }
+      .detail-layout { flex-direction:column; }
+      /* 모바일에서 책 패널은 가로로 펼쳐짐 */
+      .book-panel { width:100%; flex-direction:row; flex-wrap:wrap; border-right:none; border-bottom:1px solid rgba(255,255,255,0.08); }
+      .detail-cover { width:80px; aspect-ratio:2/3; }
+      .modal { width:90vw; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 배경 blob -->
+  <div class="bg-blob b1"></div>
+  <div class="bg-blob b2"></div>
+  <div class="bg-blob b3"></div>
+
+  <!-- ════════════════════════════════════════
+       ① 책장 뷰 — 모든 책이 나열된 메인 화면
+  ════════════════════════════════════════ -->
+  <div id="shelfView">
+    <!-- 헤더 -->
+    <header class="header">
+      <div class="header-left">
+        <!-- academy.html로 돌아가기 -->
+        <a href="academy.html" class="back-btn">← Academy</a>
+        <span class="page-title">📚 독서 트래커</span>
+      </div>
+      <button class="add-book-btn" onclick="openAddModal()">+ 책 추가</button>
+    </header>
+
+    <!-- 카테고리 탭 필터 -->
+    <div class="category-tabs" id="categoryTabs">
+      <!-- JS가 동적으로 탭 생성 -->
+    </div>
+
+    <!-- 책 그리드 -->
+    <div class="shelf-area">
+      <div class="book-grid" id="bookGrid">
+        <!-- JS가 책 카드 동적 생성 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       ② 책 상세 뷰 — 책 클릭 시 전환
+  ════════════════════════════════════════ -->
+  <div id="detailView">
+    <!-- 헤더 -->
+    <header class="header">
+      <div class="header-left">
+        <!-- 책장으로 돌아가기 -->
+        <button class="back-btn" onclick="closeDetail()">← 책장</button>
+        <!-- 책 제목 (헤더에 작게 표시) -->
+        <span class="page-title" id="detailHeaderTitle" style="font-size:16px;"></span>
+      </div>
+      <!-- 저장 상태 표시 -->
+      <span style="font-size:12px; color:rgba(255,255,255,0.3);" id="saveStatus">자동저장됨</span>
+    </header>
+
+    <!-- 좌우 2분할 레이아웃 -->
+    <div class="detail-layout">
+
+      <!-- 왼쪽: 책 정보 패널 -->
+      <aside class="book-panel">
+        <!-- 표지 이미지 — 클릭하면 파일 선택 창 열림 -->
+        <div class="detail-cover" id="detailCover" onclick="document.getElementById('coverInput').click()">
+          <div class="cover-placeholder" id="detailCoverPlaceholder">
+            <span class="book-emoji">📖</span>
+            <span style="font-size:10px;">표지 추가</span>
+          </div>
+          <!-- 이미지가 있으면 여기에 img 태그 삽입 -->
+          <div class="cover-overlay">🖼️ 표지 변경</div>
+        </div>
+        <!-- 숨겨진 파일 입력 — 표지 이미지 업로드 -->
+        <input type="file" id="coverInput" accept="image/*" onchange="uploadCover(event)"/>
+
+        <!-- 책 제목 (클릭해서 직접 편집 가능) -->
+        <textarea class="editable-title" id="detailTitle" rows="2"
+          placeholder="책 제목"
+          oninput="autoSaveDetail()"></textarea>
+
+        <!-- 저자 -->
+        <input class="editable-author" type="text" id="detailAuthor"
+          placeholder="저자"
+          oninput="autoSaveDetail()"/>
+
+        <!-- 카테고리 선택 -->
+        <div>
+          <div class="panel-label" style="margin-bottom:6px;">카테고리</div>
+          <select class="cat-select" id="detailCategory" onchange="autoSaveDetail()">
+            <option value="소설">소설</option>
+            <option value="비문학">비문학</option>
+            <option value="자기계발">자기계발</option>
+            <option value="과학">과학</option>
+            <option value="역사">역사</option>
+            <option value="철학">철학</option>
+            <option value="경제">경제</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- 독서 기간 -->
+        <div>
+          <div class="panel-label" style="margin-bottom:8px;">📅 독서 기간</div>
+          <div class="modal-group">
+            <div class="modal-label">시작일</div>
+            <input type="date" class="date-input" id="detailStartDate" onchange="updateDuration(); autoSaveDetail()"/>
+          </div>
+          <div class="modal-group">
+            <div class="modal-label">종료일</div>
+            <input type="date" class="date-input" id="detailEndDate" onchange="updateDuration(); autoSaveDetail()"/>
+          </div>
+          <!-- 읽은 일수 표시 -->
+          <div class="reading-duration" id="readingDuration"></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- 책 삭제 버튼 -->
+        <button class="delete-book-btn" onclick="deleteCurrentBook()">🗑️ 이 책 삭제</button>
+      </aside>
+
+      <!-- 오른쪽: 노트 패널 -->
+      <div class="notes-panel">
+        <!-- 서식 툴바 — subject.html과 동일한 버튼들 -->
+        <div class="note-toolbar">
+          <button class="toolbar-btn" onclick="fmt('bold')"><b>B</b></button>
+          <button class="toolbar-btn" onclick="fmt('italic')"><i>I</i></button>
+          <button class="toolbar-btn" onclick="fmt('underline')"><u>U</u></button>
+          <button class="toolbar-btn" onclick="fmt('insertUnorderedList')">• 목록</button>
+          <button class="toolbar-btn" onclick="fmt('insertOrderedList')">1. 목록</button>
+          <button class="toolbar-btn" onclick="fmt('formatBlock', 'h3')">제목</button>
+          <button class="toolbar-btn" onclick="fmt('formatBlock', 'blockquote')">인용</button>
+          <button class="toolbar-btn" onclick="insertDivider()">── 구분선</button>
+          <button class="toolbar-btn danger" onclick="clearNote()">초기화</button>
+        </div>
+
+        <!-- 자유 노트 영역 — 타이핑 + 이미지 Ctrl+V -->
+        <div class="note-area" id="noteArea" contenteditable="true"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       이미지 클릭 툴바 — 화면 위에 fixed로 뜸
+       (subject.html과 동일한 구조)
+  ════════════════════════════════════════ -->
+  <div id="imgToolbar">
+    <!-- 크기 조절 버튼 한 줄 -->
+    <div class="img-tb-row">
+      <button class="img-tb-btn" onclick="setImgSize('small')">작게</button>
+      <button class="img-tb-btn" onclick="setImgSize('medium')">중간</button>
+      <button class="img-tb-btn" onclick="setImgSize('large')">크게</button>
+      <button class="img-tb-btn" onclick="setImgSize('full')">전체</button>
+    </div>
+    <!-- 정렬 버튼 한 줄 -->
+    <div class="img-tb-row">
+      <button class="img-tb-btn" onclick="setImgAlign('left')">◀ 왼쪽</button>
+      <button class="img-tb-btn" onclick="setImgAlign('center')">● 가운데</button>
+      <button class="img-tb-btn" onclick="setImgAlign('right')">오른쪽 ▶</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       책 추가 모달
+  ════════════════════════════════════════ -->
+  <div class="modal-overlay" id="addModal">
+    <div class="modal">
+      <h2 class="modal-title">새 책 추가</h2>
+
+      <!-- 표지 업로드 클릭 영역 -->
+      <div class="modal-cover-upload" id="modalCoverPreview" onclick="document.getElementById('modalCoverInput').click()">
+        <span class="upload-icon">📸</span>
+        <span class="upload-hint">표지 이미지<br>클릭해서 추가</span>
+      </div>
+      <!-- 숨겨진 파일 입력 -->
+      <input type="file" id="modalCoverInput" accept="image/*" onchange="previewModalCover(event)"/>
+
+      <!-- 제목 -->
+      <div class="modal-group">
+        <div class="modal-label">책 제목 *</div>
+        <input class="modal-input" id="modalTitle" placeholder="예: 어린 왕자"/>
+      </div>
+      <!-- 저자 -->
+      <div class="modal-group">
+        <div class="modal-label">저자</div>
+        <input class="modal-input" id="modalAuthor" placeholder="예: 생텍쥐페리"/>
+      </div>
+      <!-- 카테고리 -->
+      <div class="modal-group">
+        <div class="modal-label">카테고리</div>
+        <select class="modal-select" id="modalCategory">
+          <option value="소설">소설</option>
+          <option value="비문학">비문학</option>
+          <option value="자기계발">자기계발</option>
+          <option value="과학">과학</option>
+          <option value="역사">역사</option>
+          <option value="철학">철학</option>
+          <option value="경제">경제</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <!-- 독서 기간 -->
+      <div class="modal-group">
+        <div class="modal-label">독서 기간 (선택)</div>
+        <div class="date-row">
+          <input type="date" class="modal-input" id="modalStartDate" placeholder="시작일"/>
+          <input type="date" class="modal-input" id="modalEndDate" placeholder="종료일"/>
+        </div>
+      </div>
+
+      <!-- 확인/취소 버튼 -->
+      <div class="modal-btns">
+        <button class="modal-btn cancel" onclick="closeAddModal()">취소</button>
+        <button class="modal-btn confirm" onclick="confirmAddBook()">추가하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 알림 -->
+  <div id="toast"></div>
+
+
+  <script>
+    /* =============================================
+       데이터 구조 초기값
+       books: 책 배열
+       각 책은 id, title, author, category, coverImage, startDate, endDate, notes 필드를 가짐
+    ============================================= */
+    let data = { books: [] };
+
+    /* 현재 보고 있는 책의 id */
+    let currentBookId = null;
+
+    /* 카테고리 목록 — 탭 필터에 사용 */
+    const CATEGORIES = ['전체', '소설', '비문학', '자기계발', '과학', '역사', '철학', '경제', '기타'];
+
+    /* 현재 선택된 카테고리 탭 */
+    let selectedCategory = '전체';
+
+    /* 자동저장 디바운스 타이머 */
+    let saveTimer = null;
+
+    /* 모달에서 선택한 표지 이미지 (base64) */
+    let pendingCoverImage = null;
+
+    /* =============================================
+       Firebase 저장/불러오기
+       — Firestore 우선, 실패 시 localStorage 폴백
+    ============================================= */
+    const FIRESTORE_PATH = 'mindos/reading';
+    const LS_KEY = 'mindos_reading';
+
+    /* 데이터 불러오기 */
+    async function loadData() {
+      try {
+        // Firestore에서 먼저 시도
+        const snap = await db.collection('mindos').doc('reading').get();
+        if (snap.exists) {
+          data = snap.data();
+          // books 배열 없으면 초기화
+          if (!data.books) data.books = [];
+        } else {
+          // Firestore에 없으면 localStorage 확인
+          const local = localStorage.getItem(LS_KEY);
+          if (local) data = JSON.parse(local);
+        }
+      } catch(e) {
+        // Firestore 실패 시 localStorage 폴백
+        console.warn('Firestore 불러오기 실패, localStorage 사용:', e);
+        const local = localStorage.getItem(LS_KEY);
+        if (local) data = JSON.parse(local);
+      }
+      renderShelf(); // 불러온 데이터로 책장 그리기
+    }
+
+    /* 데이터 저장 — localStorage + Firestore 동시 저장 */
+    function saveData() {
+      // localStorage에 즉시 저장 (빠른 오프라인 지원)
+      localStorage.setItem(LS_KEY, JSON.stringify(data));
+      // Firestore에도 비동기 저장 (실패해도 localStorage가 있으니 괜찮음)
+      db.collection('mindos').doc('reading').set(data).catch(console.error);
+    }
+
+    /* =============================================
+       고유 ID 생성
+       — 각 책에 유니크한 ID를 붙여서 구분함
+         (마치 책마다 번호표 붙이는 것)
+    ============================================= */
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+
+    /* =============================================
+       책장 뷰 렌더링
+       — data.books 배열을 읽어서 화면에 카드로 표시
+    ============================================= */
+    function renderShelf() {
+      renderCategoryTabs();  // 카테고리 탭 먼저
+      renderBooks();         // 책 카드
+    }
+
+    /* 카테고리 탭 렌더링 */
+    function renderCategoryTabs() {
+      const tabs = document.getElementById('categoryTabs');
+      tabs.innerHTML = '';
+      CATEGORIES.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'cat-tab' + (cat === selectedCategory ? ' active' : '');
+        // 각 카테고리의 책 수 계산
+        const count = cat === '전체'
+          ? data.books.length
+          : data.books.filter(b => b.category === cat).length;
+        btn.textContent = count > 0 ? `${cat} (${count})` : cat;
+        btn.onclick = () => { selectedCategory = cat; renderShelf(); };
+        tabs.appendChild(btn);
+      });
+    }
+
+    /* 책 카드 렌더링 */
+    function renderBooks() {
+      const grid = document.getElementById('bookGrid');
+      // 선택된 카테고리로 필터링
+      const filtered = selectedCategory === '전체'
+        ? data.books
+        : data.books.filter(b => b.category === selectedCategory);
+
+      if (filtered.length === 0) {
+        // 책이 없을 때 빈 상태 메시지
+        grid.innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1">
+            <span class="empty-icon">📭</span>
+            <p>${selectedCategory === '전체' ? '아직 등록된 책이 없어요.\n+ 책 추가로 첫 책을 등록해보세요!' : `"${selectedCategory}" 카테고리에 책이 없어요.`}</p>
+          </div>`;
+        return;
+      }
+
+      // 책 카드 생성
+      grid.innerHTML = filtered.map(book => `
+        <div class="book-card" onclick="openDetail('${book.id}')">
+          <div class="book-cover">
+            ${book.coverImage
+              ? `<img src="${book.coverImage}" alt="${escapeHtml(book.title)}" loading="lazy"/>`
+              : `<div class="cover-placeholder"><span class="book-emoji">📖</span><span>${escapeHtml(book.title || '제목 없음')}</span></div>`
+            }
+          </div>
+          <div class="book-info">
+            <div class="book-title-text">${escapeHtml(book.title || '제목 없음')}</div>
+            <div class="book-author-text">${escapeHtml(book.author || '')}</div>
+            ${book.category ? `<span class="book-cat-badge">${escapeHtml(book.category)}</span>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    /* =============================================
+       책 상세 뷰 열기/닫기
+    ============================================= */
+    function openDetail(bookId) {
+      // 현재 열린 책이 있으면 먼저 저장
+      if (currentBookId) saveCurrentNote();
+
+      currentBookId = bookId;
+      const book = data.books.find(b => b.id === bookId);
+      if (!book) return;
+
+      // 책 정보를 상세 뷰 폼에 채워넣기
+      document.getElementById('detailHeaderTitle').textContent = book.title || '제목 없음';
+      document.getElementById('detailTitle').value = book.title || '';
+      document.getElementById('detailAuthor').value = book.author || '';
+      document.getElementById('detailCategory').value = book.category || '기타';
+      document.getElementById('detailStartDate').value = book.startDate || '';
+      document.getElementById('detailEndDate').value = book.endDate || '';
+
+      // 표지 이미지
+      const coverEl = document.getElementById('detailCover');
+      const placeholder = document.getElementById('detailCoverPlaceholder');
+      // 기존 img 태그 제거하고 다시 그리기
+      const oldImg = coverEl.querySelector('img');
+      if (oldImg) oldImg.remove();
+      if (book.coverImage) {
+        const img = document.createElement('img');
+        img.src = book.coverImage;
+        coverEl.insertBefore(img, coverEl.firstChild);
+        placeholder.style.display = 'none';
+      } else {
+        placeholder.style.display = 'flex';
+      }
+
+      // 노트 HTML 복원 (이미지 포함)
+      document.getElementById('noteArea').innerHTML = book.notes || '';
+
+      // 읽은 기간 계산 표시
+      updateDuration();
+
+      // 뷰 전환 (책장 숨기고 상세 표시)
+      document.getElementById('shelfView').style.display = 'none';
+      const detailView = document.getElementById('detailView');
+      detailView.style.display = 'flex';
+      detailView.classList.add('view-enter');
+      setTimeout(() => detailView.classList.remove('view-enter'), 300);
+
+      // 이미지 툴바 초기화 (이전 책에서 열려있었을 수 있으니)
+      hideImgToolbar();
+    }
+
+    /* 책장으로 돌아가기 */
+    function closeDetail() {
+      saveCurrentNote(); // 돌아가기 전 저장
+      currentBookId = null;
+      hideImgToolbar();
+
+      // 뷰 전환 (상세 숨기고 책장 표시)
+      document.getElementById('detailView').style.display = 'none';
+      document.getElementById('shelfView').style.display = 'flex';
+      renderShelf(); // 혹시 변경된 정보 반영
+    }
+
+    /* 현재 열린 책의 노트 즉시 저장 */
+    function saveCurrentNote() {
+      if (!currentBookId) return;
+      const book = data.books.find(b => b.id === currentBookId);
+      if (!book) return;
+      book.notes = document.getElementById('noteArea').innerHTML;
+      saveData();
+    }
+
+    /* =============================================
+       책 상세 — 자동 저장
+       입력할 때마다 0.8초 뒤에 저장 (디바운스)
+    ============================================= */
+    function autoSaveDetail() {
+      // 기존 타이머 취소하고 새로 시작 (연속 입력 시 중복 저장 방지)
+      clearTimeout(saveTimer);
+      document.getElementById('saveStatus').textContent = '저장 중...';
+      saveTimer = setTimeout(() => {
+        if (!currentBookId) return;
+        const book = data.books.find(b => b.id === currentBookId);
+        if (!book) return;
+
+        // 폼에서 값 읽어서 책 데이터 업데이트
+        book.title = document.getElementById('detailTitle').value.trim();
+        book.author = document.getElementById('detailAuthor').value.trim();
+        book.category = document.getElementById('detailCategory').value;
+        book.startDate = document.getElementById('detailStartDate').value;
+        book.endDate = document.getElementById('detailEndDate').value;
+        book.notes = document.getElementById('noteArea').innerHTML;
+
+        // 헤더 제목도 업데이트
+        document.getElementById('detailHeaderTitle').textContent = book.title || '제목 없음';
+
+        saveData();
+        document.getElementById('saveStatus').textContent = '저장됨 ✓';
+      }, 800);
+    }
+
+    /* =============================================
+       독서 기간 계산 — 시작일~종료일 사이 일수 표시
+    ============================================= */
+    function updateDuration() {
+      const start = document.getElementById('detailStartDate').value;
+      const end = document.getElementById('detailEndDate').value;
+      const el = document.getElementById('readingDuration');
+
+      if (start && end) {
+        const days = Math.round((new Date(end) - new Date(start)) / (1000*60*60*24));
+        if (days >= 0) {
+          el.textContent = `${days}일 동안 읽었어요 📖`;
+        } else {
+          el.textContent = '종료일이 시작일보다 앞서있어요';
+        }
+      } else if (start) {
+        el.textContent = '읽는 중... 📖';
+      } else {
+        el.textContent = '';
+      }
+    }
+
+    /* =============================================
+       표지 이미지 업로드 (상세 뷰)
+    ============================================= */
+    function uploadCover(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target.result;
+        // 화면에 표시
+        const coverEl = document.getElementById('detailCover');
+        const placeholder = document.getElementById('detailCoverPlaceholder');
+        let img = coverEl.querySelector('img');
+        if (!img) {
+          img = document.createElement('img');
+          coverEl.insertBefore(img, coverEl.firstChild);
+        }
+        img.src = base64;
+        placeholder.style.display = 'none';
+        // 데이터에 저장
+        if (currentBookId) {
+          const book = data.books.find(b => b.id === currentBookId);
+          if (book) {
+            book.coverImage = base64;
+            saveData();
+            showToast('표지 이미지가 저장됐어요!');
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+      // 같은 파일 재선택 허용 (초기화)
+      event.target.value = '';
+    }
+
+    /* =============================================
+       책 삭제
+    ============================================= */
+    function deleteCurrentBook() {
+      if (!currentBookId) return;
+      const book = data.books.find(b => b.id === currentBookId);
+      const title = book ? (book.title || '이 책') : '이 책';
+      if (!confirm(`"${title}"을 삭제할까요? 노트도 함께 삭제됩니다.`)) return;
+
+      // 배열에서 해당 책 제거
+      data.books = data.books.filter(b => b.id !== currentBookId);
+      saveData();
+      closeDetail();
+      showToast('책이 삭제됐어요.');
+    }
+
+    /* =============================================
+       책 추가 모달
+    ============================================= */
+    function openAddModal() {
+      // 모달 초기화
+      document.getElementById('modalTitle').value = '';
+      document.getElementById('modalAuthor').value = '';
+      document.getElementById('modalCategory').value = '소설';
+      document.getElementById('modalStartDate').value = '';
+      document.getElementById('modalEndDate').value = '';
+      pendingCoverImage = null;
+      // 표지 미리보기 초기화
+      const preview = document.getElementById('modalCoverPreview');
+      preview.innerHTML = '<span class="upload-icon">📸</span><span class="upload-hint">표지 이미지<br>클릭해서 추가</span>';
+      // 모달 열기
+      document.getElementById('addModal').classList.add('show');
+      setTimeout(() => document.getElementById('modalTitle').focus(), 200);
+    }
+
+    function closeAddModal() {
+      document.getElementById('addModal').classList.remove('show');
+    }
+
+    /* 모달에서 표지 이미지 미리보기 */
+    function previewModalCover(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        pendingCoverImage = e.target.result;
+        // 미리보기 이미지로 교체
+        const preview = document.getElementById('modalCoverPreview');
+        preview.innerHTML = `<img src="${pendingCoverImage}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"/>`;
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+    }
+
+    /* 책 추가 확인 */
+    function confirmAddBook() {
+      const title = document.getElementById('modalTitle').value.trim();
+      if (!title) {
+        showToast('책 제목을 입력해주세요!');
+        document.getElementById('modalTitle').focus();
+        return;
+      }
+
+      // 새 책 객체 생성 — 고유 ID 부여
+      const newBook = {
+        id: generateId(),
+        title: title,
+        author: document.getElementById('modalAuthor').value.trim(),
+        category: document.getElementById('modalCategory').value,
+        coverImage: pendingCoverImage || null,  // 표지 없으면 null
+        startDate: document.getElementById('modalStartDate').value,
+        endDate: document.getElementById('modalEndDate').value,
+        notes: ''  // 노트는 처음엔 비어있음
+      };
+
+      // 배열 앞에 추가 (최신 책이 맨 앞에 오도록)
+      data.books.unshift(newBook);
+      saveData();
+      closeAddModal();
+      renderShelf();
+      showToast(`"${title}" 추가됐어요! 📚`);
+
+      // 추가한 책 바로 열기
+      openDetail(newBook.id);
+    }
+
+    /* ESC 키로 모달 닫기 */
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAddModal();
+    });
+
+    /* 모달 바깥 클릭 시 닫기 */
+    document.getElementById('addModal').addEventListener('click', function(e) {
+      if (e.target === this) closeAddModal();
+    });
+
+    /* =============================================
+       노트 서식 버튼 — execCommand 사용
+       (document.execCommand는 deprecated지만
+        contenteditable 영역에서는 여전히 가장 간단한 방법)
+    ============================================= */
+    function fmt(command, value) {
+      document.getElementById('noteArea').focus();
+      document.execCommand(command, false, value || null);
+      autoSaveDetail();
+    }
+
+    /* 구분선 삽입 */
+    function insertDivider() {
+      document.getElementById('noteArea').focus();
+      document.execCommand('insertHTML', false, '<hr style="border:none;border-top:1px solid rgba(255,255,255,0.15);margin:12px 0;"/><p><br></p>');
+      autoSaveDetail();
+    }
+
+    /* 노트 초기화 */
+    function clearNote() {
+      if (!confirm('노트 내용을 모두 지울까요?')) return;
+      document.getElementById('noteArea').innerHTML = '';
+      autoSaveDetail();
+    }
+
+    /* =============================================
+       이미지 압축 함수
+       — 캔버스를 도화지 삼아 이미지를 다시 그린 뒤 JPEG로 추출
+       — maxWidth: 최대 가로px / quality: 품질 0~1
+       — Firestore는 문서당 1MB 한도가 있어서 압축 필수
+    ============================================= */
+    function compressImage(dataUrl, maxWidth, quality, callback) {
+      const img = new Image();
+      img.onload = function() {
+        let w = img.width, h = img.height;
+        // 원본이 maxWidth보다 크면 비율 유지하며 축소
+        if (w > maxWidth) {
+          h = Math.round(h * maxWidth / w);
+          w = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        // PNG → JPEG 변환으로 용량 대폭 감소
+        callback(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = dataUrl;
+    }
+
+    /* =============================================
+       이미지 Ctrl+V 붙여넣기 처리
+       — 클립보드에서 이미지 데이터를 읽어서 압축 후 삽입
+    ============================================= */
+    document.getElementById('noteArea').addEventListener('paste', function(e) {
+      const items = e.clipboardData.items;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();  // 기본 붙여넣기 막기
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            // 붙여넣기 전 압축 (최대 1200px, 품질 80%) → Firestore 동기화 가능 크기로
+            compressImage(ev.target.result, 1200, 0.8, (compressed) => {
+              document.execCommand('insertHTML', false,
+                `<img src="${compressed}" style="max-width:100%;border-radius:8px;margin:6px 0">`
+              );
+              autoSaveDetail();
+            });
+          };
+          reader.readAsDataURL(item.getAsFile());
+          break;  // 이미지 하나만 처리
+        }
+      }
+    });
+
+    /* 노트 타이핑 시 자동 저장 */
+    document.getElementById('noteArea').addEventListener('input', autoSaveDetail);
+
+    /* =============================================
+       이미지 클릭 툴바
+       — subject.html과 완전히 동일한 패턴
+       — 노트 안의 이미지를 클릭하면 툴바가 그 위에 뜸
+    ============================================= */
+    let selectedImg = null;  // 현재 선택된 이미지 요소
+
+    /* 노트 영역 클릭 이벤트 — 이미지 클릭인지 확인 */
+    document.getElementById('noteArea').addEventListener('click', function(e) {
+      if (e.target.tagName === 'IMG') {
+        selectedImg = e.target;        // 클릭한 이미지 기억
+        showImgToolbar(e.target);      // 툴바 표시
+      } else {
+        hideImgToolbar();              // 다른 곳 클릭 시 툴바 숨김
+      }
+    });
+
+    /* 툴바 표시 — 이미지 위치 기준으로 fixed 위치 계산 */
+    function showImgToolbar(img) {
+      const toolbar = document.getElementById('imgToolbar');
+      const rect = img.getBoundingClientRect();
+      // 이미지 바로 위에 붙이기 (화면 위쪽 벗어나면 아래에)
+      const topPos = rect.top > 80 ? rect.top - 72 : rect.bottom + 8;
+      toolbar.style.top  = topPos + 'px';
+      toolbar.style.left = rect.left + 'px';
+      toolbar.classList.add('visible');
+    }
+
+    /* 툴바 숨김 */
+    function hideImgToolbar() {
+      document.getElementById('imgToolbar').classList.remove('visible');
+      selectedImg = null;
+    }
+
+    /* 이미지 크기 변경 */
+    function setImgSize(size) {
+      if (!selectedImg) return;
+      // 크기별 max-width 매핑 (작게/중간/크게/전체)
+      const sizes = { small:'200px', medium:'400px', large:'600px', full:'100%' };
+      selectedImg.style.maxWidth = sizes[size];
+      // 버튼 active 상태 표시
+      document.querySelectorAll('.img-tb-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      autoSaveDetail();
+    }
+
+    /* 이미지 정렬 변경 */
+    function setImgAlign(align) {
+      if (!selectedImg) return;
+      // 정렬별 margin 설정 (margin auto 트릭으로 가운데 정렬)
+      const aligns = {
+        left:   { marginLeft:'0',    marginRight:'auto' },
+        center: { marginLeft:'auto', marginRight:'auto' },
+        right:  { marginLeft:'auto', marginRight:'0'    }
+      };
+      Object.assign(selectedImg.style, aligns[align]);
+      autoSaveDetail();
+    }
+
+    /* 툴바 외부 클릭 시 숨기기 */
+    document.addEventListener('click', function(e) {
+      const toolbar = document.getElementById('imgToolbar');
+      const noteArea = document.getElementById('noteArea');
+      // 클릭 대상이 툴바도 아니고 노트 안 이미지도 아니면 숨기기
+      if (!toolbar.contains(e.target) && !noteArea.contains(e.target)) {
+        hideImgToolbar();
+      }
+    });
+
+    /* =============================================
+       토스트 알림 — 하단에 잠깐 뜨는 메시지
+    ============================================= */
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+    }
+
+    /* =============================================
+       HTML 이스케이프 — XSS 방지
+       (사용자 입력을 innerHTML에 넣을 때 &lt; 등으로 변환)
+    ============================================= */
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    /* =============================================
+       초기화 — 페이지 로드 시 실행
+    ============================================= */
+    loadData();
+  </script>
+</body>
+</html>
