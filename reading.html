@@ -26,23 +26,20 @@
     /* ── 기본 리셋 ── */
     * { margin:0; padding:0; box-sizing:border-box; }
 
-    /* ── 전체 배경 ── */
-    /* 어두운 보라 그라디언트 — 도서관 밤 분위기 */
+    /* ── 전체 배경 — 밝은 라벤더 ── */
     body {
       font-family: 'DM Sans', sans-serif;
       min-height: 100vh;
-      /* 밝기 올린 보라 그라디언트 — 기존보다 20~30% 더 밝은 보라 톤 */
-      background: linear-gradient(135deg, #1c1845, #463d8a, #332e62);
-      color: #fff;
-      overflow: hidden;  /* 각 뷰가 독립 스크롤하도록 전체 스크롤 막기 */
+      background: #f5f0ff;
+      color: #1e1240;
+      overflow: hidden;
     }
 
-    /* ── 배경 blob — 흐릿하게 떠다니는 빛 덩어리 ── */
-    /* opacity 0.15 → 0.28로 올려서 색감이 더 선명하게 보이도록 */
-    .bg-blob { position:fixed; border-radius:50%; filter:blur(90px); opacity:0.28; pointer-events:none; z-index:0; }
-    .b1 { width:600px; height:600px; background:#7c3aed; top:-150px; left:-150px; }
-    .b2 { width:450px; height:450px; background:#f59e0b; bottom:-100px; right:-80px; }  /* 앰버색 — 책/독서 감성 */
-    .b3 { width:300px; height:300px; background:#3b82f6; top:40%; left:50%; }
+    /* ── 배경 blob ── */
+    .bg-blob { position:fixed; border-radius:50%; filter:blur(90px); opacity:0.5; pointer-events:none; z-index:0; }
+    .b1 { width:600px; height:600px; background:#c4b5fd; top:-150px; left:-150px; }
+    .b2 { width:450px; height:450px; background:#fde68a; bottom:-100px; right:-80px; }
+    .b3 { width:300px; height:300px; background:#93c5fd; top:40%; left:50%; }
 
     /* ══════════════════════════════
        뷰 전환 — 책장 뷰 / 상세 뷰
@@ -69,9 +66,9 @@
       flex-shrink:0;
       display:flex; align-items:center; justify-content:space-between;
       padding: 16px 28px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      background: rgba(0,0,0,0.25);
-      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(167,139,250,.15);
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(16px);
     }
     .header-left { display:flex; align-items:center; gap:14px; }
 
@@ -79,19 +76,20 @@
     .back-btn {
       display:flex; align-items:center; gap:6px;
       padding:7px 14px;
-      background:rgba(255,255,255,0.08);
-      border:1px solid rgba(255,255,255,0.14);
-      border-radius:10px; color:rgba(255,255,255,0.65);
+      background:rgba(255,255,255,.82);
+      backdrop-filter:blur(10px);
+      border:1px solid rgba(167,139,250,.4);
+      border-radius:10px; color:#5b21b6;
       font-family:'DM Sans',sans-serif; font-size:13px;
       cursor:pointer; text-decoration:none; transition:all 0.2s;
     }
-    .back-btn:hover { background:rgba(255,255,255,0.15); color:#fff; }
+    .back-btn:hover { background:rgba(255,255,255,.97); color:#4c1d95; }
 
     /* 페이지 제목 */
     .page-title {
       font-family:'Playfair Display',serif;
       font-size:20px; font-weight:600;
-      background: linear-gradient(135deg, #fbbf24, #f59e0b);  /* 골드 그라디언트 — 독서 감성 */
+      background: linear-gradient(135deg, #d97706, #f59e0b);
       -webkit-background-clip:text; -webkit-text-fill-color:transparent;
       background-clip:text;
     }
@@ -112,25 +110,25 @@
       flex-shrink:0;
       display:flex; gap:8px; flex-wrap:wrap;
       padding: 14px 28px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      background: rgba(0,0,0,0.15);
+      border-bottom: 1px solid rgba(167,139,250,.12);
+      background: rgba(255,255,255,.65);
     }
 
     /* 카테고리 탭 버튼 */
     .cat-tab {
       padding:6px 16px; border-radius:20px;
-      border:1px solid rgba(255,255,255,0.15);
-      background:rgba(255,255,255,0.06);
-      color:rgba(255,255,255,0.55);
+      border:1px solid rgba(167,139,250,.25);
+      background:rgba(255,255,255,.7);
+      color:#6b7280;
       font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500;
       cursor:pointer; transition:all 0.2s;
     }
-    .cat-tab:hover { background:rgba(255,255,255,0.12); color:#fff; }
-    /* 선택된 탭 — 골드 강조 */
+    .cat-tab:hover { background:rgba(255,255,255,.97); color:#374151; }
+    /* 선택된 탭 — 앰버 골드 강조 (독서 감성 유지) */
     .cat-tab.active {
-      background:rgba(245,158,11,0.2);
-      border-color:rgba(245,158,11,0.5);
-      color:#fbbf24; font-weight:600;
+      background:rgba(245,158,11,.12);
+      border-color:rgba(245,158,11,.45);
+      color:#b45309; font-weight:600;
     }
 
     /* ══════════════════════════════
@@ -155,21 +153,22 @@
     /* 개별 책 카드 — 세로 비율 (실제 책처럼) */
     .book-card {
       display:flex; flex-direction:column;
-      background:rgba(255,255,255,0.06);
-      border:1px solid rgba(255,255,255,0.1);
+      background:rgba(255,255,255,.82);
+      border:1.5px solid rgba(255,255,255,.95);
       border-radius:14px; overflow:hidden;
       cursor:pointer; transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: 0 4px 14px rgba(100,60,200,.07);
     }
     .book-card:hover {
       transform:translateY(-6px);
-      border-color:rgba(245,158,11,0.35);
-      box-shadow:0 12px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(245,158,11,0.15);
+      border-color:rgba(245,158,11,.4);
+      box-shadow:0 12px 28px rgba(100,60,200,.14), 0 0 0 1px rgba(245,158,11,.15);
     }
 
     /* 책 표지 영역 — 2:3 비율 (실제 책 비율) */
     .book-cover {
       width:100%; aspect-ratio:2/3;
-      background:linear-gradient(135deg,#2d1b69,#1e3a5f);  /* 표지 없을 때 기본 배경 */
+      background:linear-gradient(135deg,#ede9fe,#dbeafe);  /* 표지 없을 때 기본 배경 */
       position:relative; overflow:hidden;
       display:flex; align-items:center; justify-content:center;
       flex-shrink:0;
@@ -179,7 +178,7 @@
     /* 표지 없을 때 보여주는 기본 아이콘 */
     .cover-placeholder {
       display:flex; flex-direction:column; align-items:center; gap:8px;
-      color:rgba(255,255,255,0.3);
+      color:#a78bfa;
       font-size:12px; text-align:center; padding:16px;
     }
     .cover-placeholder .book-emoji { font-size:32px; }
@@ -191,29 +190,28 @@
     }
     .book-title-text {
       font-size:13px; font-weight:600; line-height:1.4;
-      color:#fff;
-      /* 긴 제목 2줄로 자르기 */
+      color:#1e1240;
       display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
     }
-    .book-author-text { font-size:11px; color:rgba(255,255,255,0.45); }
+    .book-author-text { font-size:11px; color:#9ca3af; }
     /* 카테고리 뱃지 */
     .book-cat-badge {
       display:inline-block; margin-top:4px;
       padding:2px 9px; border-radius:10px;
       font-size:10px; font-weight:600;
-      background:rgba(245,158,11,0.15);
-      border:1px solid rgba(245,158,11,0.25);
-      color:#fbbf24; align-self:flex-start;
+      background:rgba(245,158,11,.12);
+      border:1px solid rgba(245,158,11,.3);
+      color:#b45309; align-self:flex-start;
     }
 
     /* 빈 상태 — 책이 한 권도 없을 때 */
     .empty-state {
       display:flex; flex-direction:column; align-items:center; justify-content:center;
       gap:12px; padding:80px 20px;
-      color:rgba(255,255,255,0.3);
+      color:#c4b5fd;
       text-align:center;
     }
-    .empty-state .empty-icon { font-size:48px; opacity:0.6; }
+    .empty-state .empty-icon { font-size:48px; opacity:0.7; }
     .empty-state p { font-size:14px; line-height:1.6; }
 
     /* ══════════════════════════════
@@ -228,32 +226,32 @@
     .book-panel {
       width:280px; flex-shrink:0;
       display:flex; flex-direction:column;
-      border-right:1px solid rgba(255,255,255,0.08);
-      background:rgba(0,0,0,0.2);
+      border-right:1px solid rgba(167,139,250,.15);
+      background:rgba(255,255,255,.55);
+      backdrop-filter:blur(10px);
       overflow-y:auto;
       padding:20px;
       gap:16px;
     }
     .book-panel::-webkit-scrollbar { width:4px; }
-    .book-panel::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:2px; }
+    .book-panel::-webkit-scrollbar-thumb { background:rgba(167,139,250,.3); border-radius:2px; }
 
     /* 왼쪽 패널: 큰 표지 이미지 */
     .detail-cover {
       width:100%; aspect-ratio:2/3;
-      background:linear-gradient(135deg,#2d1b69,#1e3a5f);
+      background:linear-gradient(135deg,#ede9fe,#dbeafe);
       border-radius:12px; overflow:hidden;
       display:flex; align-items:center; justify-content:center;
       cursor:pointer; position:relative;
       border:2px solid rgba(255,255,255,0.1);
       transition:border-color 0.2s;
     }
-    .detail-cover:hover { border-color:rgba(245,158,11,0.4); }
-    /* 표지 이미지 호버 시 "클릭해서 변경" 오버레이 */
+    .detail-cover:hover { border-color:rgba(245,158,11,.4); }
     .detail-cover .cover-overlay {
       position:absolute; inset:0;
-      background:rgba(0,0,0,0.55);
+      background:rgba(255,255,255,.6);
       display:flex; align-items:center; justify-content:center;
-      font-size:12px; color:#fbbf24; font-weight:600;
+      font-size:12px; color:#b45309; font-weight:600;
       opacity:0; transition:opacity 0.2s;
     }
     .detail-cover:hover .cover-overlay { opacity:1; }
@@ -262,76 +260,73 @@
     /* 숨겨진 파일 입력 — 표지 업로드용 */
     #coverInput { display:none; }
 
-    /* 책 제목/저자 인라인 편집 — 클릭하면 수정 가능 */
+    /* 책 제목/저자 인라인 편집 */
     .editable-title {
       font-family:'Playfair Display',serif; font-size:17px; font-weight:600;
-      color:#fff; line-height:1.4;
+      color:#1e1240; line-height:1.4;
       background:transparent; border:none; outline:none;
       width:100%; resize:none; cursor:text;
-      font-family:'Playfair Display',serif;
     }
     .editable-author {
-      font-size:12px; color:rgba(255,255,255,0.5);
+      font-size:12px; color:#6b7280;
       background:transparent; border:none; outline:none;
       width:100%; cursor:text;
       font-family:'DM Sans',sans-serif;
     }
-    /* 편집 가능 필드 — 호버 시 테두리 힌트 */
     .editable-title:hover, .editable-author:hover {
-      background:rgba(255,255,255,0.04);
+      background:rgba(167,139,250,.07);
       border-radius:6px;
     }
     .editable-title:focus, .editable-author:focus {
-      background:rgba(255,255,255,0.07);
+      background:rgba(167,139,250,.1);
       border-radius:6px; padding:2px 6px;
     }
 
     /* 카테고리 선택 드롭다운 */
     .cat-select {
       width:100%; padding:8px 10px; border-radius:8px;
-      background:rgba(255,255,255,0.07);
-      border:1px solid rgba(255,255,255,0.12);
-      color:#fff; font-family:'DM Sans',sans-serif; font-size:12px;
+      background:#f9f7ff;
+      border:1px solid rgba(167,139,250,.3);
+      color:#374151; font-family:'DM Sans',sans-serif; font-size:12px;
       cursor:pointer; outline:none;
     }
-    .cat-select option { background:#1e1b4b; color:#fff; }
+    .cat-select option { background:#fff; color:#374151; }
 
     /* 구분선 */
     .divider {
-      height:1px; background:rgba(255,255,255,0.08); margin:4px 0;
+      height:1px; background:rgba(167,139,250,.15); margin:4px 0;
     }
 
     /* 날짜 섹션 레이블 */
     .panel-label {
       font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
-      color:rgba(255,255,255,0.3); font-weight:600;
+      color:#9ca3af; font-weight:600;
     }
 
     /* 날짜 입력 필드 */
     .date-input {
       width:100%; padding:8px 10px; border-radius:8px;
-      background:rgba(255,255,255,0.07);
-      border:1px solid rgba(255,255,255,0.12);
-      color:#fff; font-family:'DM Sans',sans-serif; font-size:12px;
+      background:#f9f7ff;
+      border:1px solid rgba(167,139,250,.3);
+      color:#374151; font-family:'DM Sans',sans-serif; font-size:12px;
       outline:none; cursor:pointer; transition:border-color 0.2s;
     }
-    .date-input:focus { border-color:rgba(245,158,11,0.5); }
-    /* 날짜 피커 아이콘 색상 */
-    .date-input::-webkit-calendar-picker-indicator { filter:invert(1) opacity(0.5); cursor:pointer; }
+    .date-input:focus { border-color:rgba(245,158,11,.5); }
+    .date-input::-webkit-calendar-picker-indicator { opacity:0.5; cursor:pointer; }
 
-    /* 읽은 기간 표시 (계산값) */
+    /* 읽은 기간 표시 */
     .reading-duration {
-      font-size:12px; color:#fbbf24; font-weight:500; text-align:center;
+      font-size:12px; color:#b45309; font-weight:500; text-align:center;
     }
 
     /* 삭제 버튼 */
     .delete-book-btn {
-      margin-top:auto; padding:9px; border-radius:10px; border:none;
-      background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25);
-      color:#fca5a5; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600;
+      margin-top:auto; padding:9px; border-radius:10px;
+      background:rgba(239,68,68,.07); border:1px solid rgba(239,68,68,.2);
+      color:#f87171; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600;
       cursor:pointer; transition:all 0.2s;
     }
-    .delete-book-btn:hover { background:rgba(239,68,68,0.25); }
+    .delete-book-btn:hover { background:rgba(239,68,68,.15); color:#ef4444; }
 
     /* ══════════════════════════════
        오른쪽: 노트 패널
@@ -346,54 +341,52 @@
       flex-shrink:0;
       display:flex; gap:5px; flex-wrap:wrap;
       padding:10px 16px;
-      border-bottom:1px solid rgba(255,255,255,0.08);
-      background:rgba(0,0,0,0.15);
+      border-bottom:1px solid rgba(167,139,250,.12);
+      background:rgba(255,255,255,.65);
     }
     .toolbar-btn {
-      padding:5px 11px; border-radius:7px; border:none;
-      background:rgba(255,255,255,0.08);
-      color:rgba(255,255,255,0.65);
+      padding:5px 11px; border-radius:7px; border:1px solid rgba(167,139,250,.25);
+      background:rgba(255,255,255,.8);
+      color:#6b7280;
       font-family:'DM Sans',sans-serif; font-size:12px;
       cursor:pointer; transition:all 0.15s;
     }
-    .toolbar-btn:hover { background:rgba(255,255,255,0.15); color:#fff; }
-    .toolbar-btn.danger { background:rgba(239,68,68,0.1); color:#fca5a5; border:1px solid rgba(239,68,68,0.2); }
-    .toolbar-btn.danger:hover { background:rgba(239,68,68,0.25); }
+    .toolbar-btn:hover { background:rgba(167,139,250,.15); color:#5b21b6; }
+    .toolbar-btn.danger { background:rgba(239,68,68,.07); color:#f87171; border-color:rgba(239,68,68,.2); }
+    .toolbar-btn.danger:hover { background:rgba(239,68,68,.15); color:#ef4444; }
 
-    /* 자유 노트 영역 — subject.html과 동일 패턴 */
+    /* 자유 노트 영역 */
     .note-area {
       flex:1; overflow-y:auto;
       padding:20px 24px;
       outline:none;
       font-size:14px; line-height:1.8;
-      color:rgba(255,255,255,0.85);
+      color:#374151;
     }
     /* 빈 노트일 때 안내 텍스트 */
     .note-area:empty::before {
       content: '이 책에 대한 생각, 인상 깊은 구절, 독서 메모를 자유롭게 작성하세요 ✏️\n이미지도 Ctrl+V로 붙여넣기 가능해요!';
-      color:rgba(255,255,255,0.22); pointer-events:none;
+      color:#c4b5fd; pointer-events:none;
       white-space:pre-line;
     }
-    /* 노트 안에 있는 이미지 스타일 */
     .note-area img { max-width:100%; border-radius:8px; margin:6px 0; display:block; cursor:pointer; }
-    /* 스크롤바 */
     .note-area::-webkit-scrollbar { width:6px; }
-    .note-area::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+    .note-area::-webkit-scrollbar-thumb { background:rgba(167,139,250,.25); border-radius:3px; }
 
     /* ── 이미지 클릭 툴바 — subject.html과 동일 패턴 ── */
     /* 이미지를 클릭하면 그 이미지 위에 떠서 나타나는 조작 패널 */
     #imgToolbar {
-      position: fixed;          /* 화면 기준으로 위치 — 스크롤에 무관 */
+      position: fixed;
       z-index: 500;
-      background: rgba(20,18,50,0.95);
+      background: rgba(255,255,255,.95);
       backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,0.15);
+      border: 1px solid rgba(167,139,250,.3);
       border-radius: 12px;
       padding: 8px 10px;
-      display: none;            /* 기본은 숨김 — JS가 .visible 클래스 붙여서 보여줌 */
+      display: none;
       flex-direction: column;
       gap: 6px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      box-shadow: 0 8px 24px rgba(100,60,200,.15);
     }
     #imgToolbar.visible { display: flex; }
 
@@ -401,14 +394,14 @@
     .img-tb-row { display:flex; gap:5px; }
     .img-tb-btn {
       padding:5px 12px; border-radius:7px;
-      border:1px solid rgba(255,255,255,0.12);
-      background:rgba(255,255,255,0.07);
-      color:rgba(255,255,255,0.65);
+      border:1px solid rgba(167,139,250,.25);
+      background:rgba(255,255,255,.8);
+      color:#6b7280;
       font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500;
       cursor:pointer; transition:all 0.15s;
     }
-    .img-tb-btn:hover { background:rgba(245,158,11,0.2); color:#fbbf24; border-color:rgba(245,158,11,0.4); }
-    .img-tb-btn.active { background:rgba(245,158,11,0.35); color:#fbbf24; border-color:rgba(245,158,11,0.6); }
+    .img-tb-btn:hover { background:rgba(245,158,11,.15); color:#b45309; border-color:rgba(245,158,11,.4); }
+    .img-tb-btn.active { background:rgba(245,158,11,.28); color:#b45309; border-color:rgba(245,158,11,.5); }
 
     /* ══════════════════════════════
        책 추가 모달
@@ -422,48 +415,49 @@
     .modal-overlay.show { opacity:1; pointer-events:all; }
 
     .modal {
-      background:#1e1b4b; border:1px solid rgba(255,255,255,0.14);
+      background:#fff; border:1px solid rgba(167,139,250,.2);
       border-radius:20px; padding:28px; width:380px;
       transform:scale(0.95); transition:transform 0.2s cubic-bezier(0.4,0,0.2,1);
       max-height:90vh; overflow-y:auto;
+      box-shadow:0 20px 50px rgba(100,60,200,.15);
     }
     .modal-overlay.show .modal { transform:scale(1); }
 
     .modal-title {
       font-family:'Playfair Display',serif; font-size:20px; margin-bottom:20px;
-      background:linear-gradient(135deg,#fbbf24,#f59e0b);
+      background:linear-gradient(135deg,#d97706,#f59e0b);
       -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
     }
 
     /* 모달 내 커버 업로드 영역 */
     .modal-cover-upload {
       width:100px; aspect-ratio:2/3; margin:0 auto 16px;
-      background:rgba(255,255,255,0.06);
-      border:2px dashed rgba(245,158,11,0.3);
+      background:#f9f7ff;
+      border:2px dashed rgba(245,158,11,.35);
       border-radius:10px; display:flex; flex-direction:column;
       align-items:center; justify-content:center; gap:4px;
       cursor:pointer; transition:all 0.2s; overflow:hidden;
     }
-    .modal-cover-upload:hover { border-color:rgba(245,158,11,0.6); background:rgba(245,158,11,0.06); }
+    .modal-cover-upload:hover { border-color:rgba(245,158,11,.6); background:rgba(245,158,11,.06); }
     .modal-cover-upload img { width:100%; height:100%; object-fit:cover; }
-    .modal-cover-upload .upload-hint { font-size:10px; color:rgba(255,255,255,0.35); text-align:center; }
+    .modal-cover-upload .upload-hint { font-size:10px; color:#9ca3af; text-align:center; }
     .modal-cover-upload .upload-icon { font-size:24px; }
 
     /* 모달 폼 그룹 */
     .modal-group { margin-bottom:14px; }
-    .modal-label { font-size:11px; color:rgba(255,255,255,0.4); margin-bottom:5px; letter-spacing:0.5px; }
+    .modal-label { font-size:11px; color:#9ca3af; margin-bottom:5px; letter-spacing:0.5px; }
 
     .modal-input, .modal-select {
       width:100%; padding:10px 13px;
-      background:rgba(255,255,255,0.08);
-      border:1px solid rgba(255,255,255,0.14);
-      border-radius:10px; color:#fff;
+      background:#f9f7ff;
+      border:1px solid rgba(167,139,250,.3);
+      border-radius:10px; color:#374151;
       font-family:'DM Sans',sans-serif; font-size:13px;
       outline:none; transition:border-color 0.2s;
     }
-    .modal-input:focus, .modal-select:focus { border-color:rgba(245,158,11,0.5); }
-    .modal-input::placeholder { color:rgba(255,255,255,0.25); }
-    .modal-select option { background:#1e1b4b; }
+    .modal-input:focus, .modal-select:focus { border-color:rgba(245,158,11,.5); }
+    .modal-input::placeholder { color:#c4b5fd; }
+    .modal-select option { background:#fff; color:#374151; }
 
     /* 날짜 2개 나란히 */
     .date-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -475,15 +469,16 @@
       font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600;
       cursor:pointer; transition:all 0.2s;
     }
-    .modal-btn.cancel { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.55); }
-    .modal-btn.confirm { background:linear-gradient(135deg,#f59e0b,#d97706); color:#1a0f00; }
-    .modal-btn.confirm:hover { filter:brightness(1.1); }
+    .modal-btn.cancel { background:#f3f4f6; color:#6b7280; }
+    .modal-btn.cancel:hover { background:#e5e7eb; }
+    .modal-btn.confirm { background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; }
+    .modal-btn.confirm:hover { filter:brightness(1.08); }
 
-    /* ── 토스트 알림 (하단 중앙) ── */
+    /* ── 토스트 알림 ── */
     #toast {
       position:fixed; bottom:24px; left:50%;
       transform:translateX(-50%) translateY(20px);
-      background:rgba(20,18,50,0.95); backdrop-filter:blur(12px);
+      background:rgba(30,18,64,.92); backdrop-filter:blur(12px);
       color:#fff; padding:11px 20px; border-radius:14px;
       font-size:13px; font-weight:500;
       opacity:0; transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
@@ -491,15 +486,77 @@
     }
     #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
+    /* ── 모바일 탭 전환 바 — PC에서는 숨김 ── */
+    .mobile-tab-bar {
+      display: none; /* PC에서는 안 보임 */
+    }
+
     /* ── 반응형 — 모바일 ── */
     @media (max-width:640px) {
+      /* 책장 뷰 */
       .book-grid { grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:14px; }
       .shelf-area { padding:16px; }
-      .detail-layout { flex-direction:column; }
-      /* 모바일에서 책 패널은 가로로 펼쳐짐 */
-      .book-panel { width:100%; flex-direction:row; flex-wrap:wrap; border-right:none; border-bottom:1px solid rgba(255,255,255,0.08); }
-      .detail-cover { width:80px; aspect-ratio:2/3; }
       .modal { width:90vw; }
+
+      /* 상세 뷰 — 탭 전환 방식으로 변경 */
+      .detail-layout {
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+      }
+
+      /* 모바일 탭 바 표시 */
+      .mobile-tab-bar {
+        display: flex;
+        flex-shrink: 0;
+        border-bottom: 1px solid rgba(167,139,250,.15);
+        background: rgba(255,255,255,.82);
+        backdrop-filter: blur(12px);
+      }
+      /* 탭 버튼 — 책 정보 / 노트 */
+      .mob-tab-btn {
+        flex: 1;
+        padding: 11px 0;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        color: #9ca3af;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        border-bottom: 2px solid transparent;
+      }
+      /* 선택된 탭 — 앰버 밑줄 강조 */
+      .mob-tab-btn.active {
+        color: #b45309;
+        border-bottom-color: #f59e0b;
+        font-weight: 600;
+      }
+
+      /* 패널 전환 — 비활성 패널은 숨김 */
+      .book-panel {
+        width: 100%;
+        border-right: none;
+        flex-shrink: 0;
+      }
+      .book-panel.mob-hidden,
+      .notes-panel.mob-hidden {
+        display: none !important;
+      }
+      /* 활성 패널은 남은 높이 전체 사용 */
+      .notes-panel {
+        flex: 1;
+        min-height: 0;
+      }
+      /* 책 패널 내부 표지 이미지 — 모바일에서 작게 */
+      .detail-cover { width: 90px; aspect-ratio: 2/3; flex-shrink: 0; }
+      /* 책 패널 내부 가로 배열 */
+      .book-panel { flex-direction: row; flex-wrap: wrap; gap: 12px; padding: 14px; }
+      .book-panel > * { width: calc(100% - 102px); }
+      .book-panel > .detail-cover { width: 90px; }
+      .book-panel > .divider { width: 100%; margin: 0; }
+      .book-panel > .delete-book-btn { width: 100%; }
     }
   </style>
 </head>
@@ -552,6 +609,12 @@
       <!-- 저장 상태 표시 -->
       <span style="font-size:12px; color:rgba(255,255,255,0.3);" id="saveStatus">자동저장됨</span>
     </header>
+
+    <!-- 모바일 전용 탭 바 — PC에서는 CSS로 숨겨짐 -->
+    <div class="mobile-tab-bar">
+      <button class="mob-tab-btn active" id="mobTabInfo" onclick="switchMobTab('info')">📖 책 정보</button>
+      <button class="mob-tab-btn" id="mobTabNote" onclick="switchMobTab('note')">✏️ 노트</button>
+    </div>
 
     <!-- 좌우 2분할 레이아웃 -->
     <div class="detail-layout">
@@ -1273,6 +1336,33 @@
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+    }
+
+    /* =============================================
+       모바일 탭 전환 — 책 정보 패널 ↔ 노트 패널
+       (PC에서는 탭 바 자체가 CSS로 숨겨져 있어서 이 함수는 호출 안 됨)
+    ============================================= */
+    function switchMobTab(tab) {
+      const bookPanel  = document.querySelector('.book-panel');
+      const notesPanel = document.querySelector('.notes-panel');
+      const btnInfo    = document.getElementById('mobTabInfo');
+      const btnNote    = document.getElementById('mobTabNote');
+
+      if (tab === 'info') {
+        // 책 정보 패널 보이기, 노트 패널 숨기기
+        bookPanel.classList.remove('mob-hidden');
+        notesPanel.classList.add('mob-hidden');
+        btnInfo.classList.add('active');
+        btnNote.classList.remove('active');
+      } else {
+        // 노트 패널 보이기, 책 정보 패널 숨기기
+        notesPanel.classList.remove('mob-hidden');
+        bookPanel.classList.add('mob-hidden');
+        btnNote.classList.add('active');
+        btnInfo.classList.remove('active');
+        // 노트 에디터에 자동 포커스
+        document.getElementById('noteArea').focus();
+      }
     }
 
     /* =============================================
