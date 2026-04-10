@@ -161,31 +161,78 @@
       width: 100%;
     }
 
-    /* ── SVG 원형 프로그레스 바 ── */
+    /* ── 원형 채우기 링 ── */
+    /* @property로 CSS 변수를 숫자 타입으로 등록 — transition이 숫자로 보간되어 부드럽게 변함 */
+    @property --pct {
+      syntax: '<number>';
+      initial-value: 0;
+      inherits: false;
+    }
+
     .timer-ring-wrap { position: relative; width: 220px; height: 220px; }
 
-    /* SVG 원형 — 배경 링과 진행 링 두 개로 구성 */
-    .ring-svg { transform: rotate(-90deg); }  /* -90deg 회전해야 12시 방향에서 시작 */
-    .ring-bg {
-      fill: none;
-      stroke: rgba(196,181,253,0.2);
-      stroke-width: 10;
-    }
-    .ring-progress {
-      fill: none;
-      stroke: #7c3aed;          /* 집중 모드: 보라 */
-      stroke-width: 10;
-      stroke-linecap: round;
-      /* stroke-dasharray/offset은 JS로 계산해서 넣음 */
-      transition: stroke 1s, stroke-dashoffset 1s linear;
+    /* 배경 원 — 연한 보라색 깔개 */
+    .ring-bg-circle {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      background: rgba(196,181,253,0.2);
     }
 
-    /* 원 가운데 시간 표시 영역 */
+    /* 단색 채우기 레이어 — 짧은 휴식 / 긴 휴식 모드 */
+    /* conic-gradient: 12시 방향부터 시계방향으로 --pct% 만큼 색으로 채움 */
+    .ring-solid-fill {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      --ring-color: #7c3aed;
+      --pct: 0;
+      background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), rgba(196,181,253,0.15) 0);
+      transition: --pct 1s linear; /* 숫자 보간 덕분에 1초마다 부드럽게 채워짐 */
+    }
+
+    /* RGB 채우기 레이어 — 집중 모드(25분)에서만 표시 */
+    /* 무지개 그라디언트를 conic mask로 진행된 만큼만 보여줌 */
+    .ring-rgb-fill {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      background: linear-gradient(135deg,
+        #f472b6, #fb923c, #facc15, #4ade80, #60a5fa, #c084fc, #f472b6);
+      background-size: 400% 400%;
+      animation: rgbFill 4s ease-in-out infinite; /* 무지개가 천천히 흐름 */
+      --pct: 0;
+      /* mask로 채워진 부분만 보이게 — conic gradient 마스크 */
+      -webkit-mask-image: conic-gradient(black calc(var(--pct) * 1%), transparent 0);
+              mask-image: conic-gradient(black calc(var(--pct) * 1%), transparent 0);
+      transition: --pct 1s linear;
+      display: none; /* 기본: 숨김 */
+    }
+    /* 집중 모드일 때 RGB 표시, 단색 숨김 */
+    body.mode-focus .ring-rgb-fill  { display: block; }
+    body.mode-focus .ring-solid-fill { display: none; }
+
+    /* 무지개 흐르는 애니메이션 */
+    @keyframes rgbFill {
+      0%   { background-position: 0%   0%;   }
+      50%  { background-position: 100% 100%; }
+      100% { background-position: 0%   0%;   }
+    }
+
+    /* 가운데 구멍 — 링 두께 조절 (inset이 클수록 얇은 링, 작을수록 두꺼운 링) */
+    .ring-hole {
+      position: absolute;
+      inset: 18px; /* 링 두께 ≈ 18px */
+      border-radius: 50%;
+      background: rgba(255,255,255,.93);
+      backdrop-filter: blur(4px);
+      z-index: 1;
+    }
+
+    /* 원 가운데 시간 + 모드 텍스트 — 구멍 위에 올라와야 하므로 z-index:2 */
     .timer-center {
       position: absolute;
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
+      z-index: 2;
     }
     .timer-display {
       font-size: 52px;
@@ -346,16 +393,16 @@
     <!-- 타이머 카드 -->
     <div class="timer-card">
 
-      <!-- 원형 프로그레스 링 -->
+      <!-- 원형 채우기 링 -->
       <div class="timer-ring-wrap">
-        <!-- viewBox: 220×220, 중심(110,110), 반지름 100 -->
-        <svg class="ring-svg" width="220" height="220" viewBox="0 0 220 220">
-          <!-- 배경 원 (회색) -->
-          <circle class="ring-bg" cx="110" cy="110" r="100"/>
-          <!-- 진행 원 — stroke-dasharray = 원둘레(2πr ≈ 628), JS로 offset 계산 -->
-          <circle class="ring-progress" id="ring" cx="110" cy="110" r="100"
-            stroke-dasharray="628" stroke-dashoffset="0"/>
-        </svg>
+        <!-- 배경 원 -->
+        <div class="ring-bg-circle"></div>
+        <!-- 단색 채우기 (휴식 모드) -->
+        <div class="ring-solid-fill" id="ring-solid-fill"></div>
+        <!-- RGB 채우기 (집중 모드 25분) -->
+        <div class="ring-rgb-fill" id="ring-rgb-fill"></div>
+        <!-- 가운데 구멍 — 링 두께 조절 -->
+        <div class="ring-hole"></div>
         <!-- 원 가운데: 남은 시간 + 모드 이름 -->
         <div class="timer-center">
           <div class="timer-display" id="time-display">25:00</div>
@@ -410,6 +457,9 @@
     });
     const db = firebase.firestore();
 
+    // ── 타이머 상태 저장 키 ──
+    const TIMER_STATE_KEY = 'mindos_pomodoro_timer';
+
     // ── 뽀모도로 모드 설정 (분 단위) ──
     // 마치 게임의 레벨 설정처럼 — 모드마다 시간과 색이 다름
     const MODES = {
@@ -425,7 +475,6 @@
     let isRunning     = false;      // 타이머 동작 중인지
     let intervalId    = null;       // setInterval 참조 (나중에 clear 하기 위해)
     let sessionCount  = 0;          // 4세션 주기 내 완료 수 (0~3)
-    const CIRCUMFERENCE = 628;      // 2 × π × 100 ≈ 628 (원 둘레)
 
     // ── 오늘 통계 (localStorage에서 불러옴) ──
     // 날짜가 바뀌면 자동으로 초기화되도록 날짜 키 포함
@@ -434,6 +483,98 @@
 
     // ── 페이지 로드 시 통계 표시 ──
     renderStats();
+
+    // ────────────────────────────────
+    //  타이머 상태 저장 / 복원
+    //  다른 페이지로 이탈했다가 돌아와도 타이머가 이어지도록
+    //  "언제 끝나는지 절대 시각(endTime)"을 저장 → 복귀 시 now()와 비교해서 남은 시간 계산
+    // ────────────────────────────────
+    function saveTimerState() {
+      const state = {
+        currentMode,
+        sessionCount,
+        isRunning,
+        totalSeconds,
+        leftSeconds,
+        // 실행 중이면 "몇 시 몇 분에 끝나는지" 저장 (페이지 없는 동안 흐른 시간 계산용)
+        endTime: isRunning ? Date.now() + leftSeconds * 1000 : null,
+      };
+      localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(state));
+    }
+
+    function loadTimerState() {
+      try {
+        const raw = localStorage.getItem(TIMER_STATE_KEY);
+        if (!raw) return false;
+        const state = JSON.parse(raw);
+        if (!state.currentMode) return false;
+
+        // 모드 복원
+        currentMode  = state.currentMode;
+        sessionCount = state.sessionCount || 0;
+        totalSeconds = state.totalSeconds || MODES[currentMode].minutes * 60;
+        const cfg    = MODES[currentMode];
+
+        // UI 복원 — body 클래스, 탭, 색상, 세션 점
+        document.body.className = cfg.bodyClass;
+        ['focus','short','long'].forEach(m => {
+          document.getElementById(`tab-${m}`).className = 'mode-tab';
+        });
+        document.getElementById(`tab-${currentMode}`).className = `mode-tab active-${currentMode}`;
+        document.getElementById('mode-label').textContent = cfg.label;
+        document.getElementById('ring-solid-fill').style.setProperty('--ring-color', cfg.ringColor);
+        updateSessionDots();
+
+        if (state.isRunning && state.endTime) {
+          // 이탈 중에 흐른 시간 반영 — 절대 종료 시각 기준으로 남은 시간 재계산
+          leftSeconds = Math.max(0, Math.ceil((state.endTime - Date.now()) / 1000));
+          updateDisplay();
+          updateFill();
+
+          if (leftSeconds <= 0) {
+            // 이탈 중에 이미 끝났음 → 완료 처리
+            leftSeconds = 0;
+            onTimerEnd();
+          } else {
+            // 남은 시간이 있음 → 버튼 상태 맞추고 이어서 실행
+            const btn = document.getElementById('btn-main');
+            btn.textContent = '일시정지';
+            btn.className   = 'btn-main pause';
+            // startTimer()를 직접 안 쓰고 interval만 재시작 (버튼 중복 변경 방지)
+            isRunning = true;
+            intervalId = setInterval(() => {
+              leftSeconds--;
+              if (leftSeconds <= 0) {
+                leftSeconds = 0;
+                clearInterval(intervalId);
+                isRunning = false;
+                localStorage.removeItem(TIMER_STATE_KEY);
+                onTimerEnd();
+              } else {
+                updateDisplay();
+                updateFill();
+                saveTimerState();
+              }
+            }, 1000);
+          }
+        } else {
+          // 일시정지 상태로 복원
+          leftSeconds = state.leftSeconds || totalSeconds;
+          updateDisplay();
+          updateFill();
+          if (state.isRunning === false && state.leftSeconds < state.totalSeconds) {
+            // 중간에 멈춘 상태였으면 "계속" 버튼 표시
+            const btn = document.getElementById('btn-main');
+            btn.textContent = '계속';
+            btn.className   = 'btn-main start';
+          }
+        }
+        return true;
+      } catch(e) {
+        console.log('타이머 상태 복원 실패:', e);
+        return false;
+      }
+    }
 
     // ────────────────────────────────
     //  모드 전환 함수
@@ -452,12 +593,14 @@
 
       // 화면 업데이트
       updateDisplay();
-      updateRing();
+      updateFill();
       document.getElementById('mode-label').textContent = cfg.label;
-      document.getElementById('ring').style.stroke = cfg.ringColor;
 
       // blob 색 전환 — body 클래스 바꾸면 CSS가 알아서 색 바꿔줌
       document.body.className = cfg.bodyClass;
+
+      // 단색 링 색상도 모드에 맞게 업데이트
+      document.getElementById('ring-solid-fill').style.setProperty('--ring-color', cfg.ringColor);
 
       // 탭 활성 표시 — 모든 탭 초기화 후 현재 탭만 활성
       ['focus','short','long'].forEach(m => {
@@ -499,10 +642,12 @@
           leftSeconds = 0;
           clearInterval(intervalId);
           isRunning = false;
+          localStorage.removeItem(TIMER_STATE_KEY); // 완료 시 상태 삭제
           onTimerEnd();
         } else {
           updateDisplay();
-          updateRing();
+          updateFill();
+          saveTimerState(); // 매 초마다 상태 저장 (이탈 시 복원 가능)
         }
       }, 1000);
     }
@@ -510,10 +655,11 @@
     function pauseTimer() {
       isRunning = false;
       clearInterval(intervalId);
-      // 버튼 다시 "시작"으로
+      // 버튼 다시 "계속"으로
       const btn = document.getElementById('btn-main');
       btn.textContent = '계속';
       btn.className   = 'btn-main start';
+      saveTimerState(); // 일시정지 상태 저장
     }
 
     // ────────────────────────────────
@@ -523,11 +669,12 @@
       if (isRunning) pauseTimer();
       leftSeconds = totalSeconds;
       updateDisplay();
-      updateRing();
+      updateFill();
       // 버튼 다시 "시작"으로
       const btn = document.getElementById('btn-main');
       btn.textContent = '시작';
       btn.className   = 'btn-main start';
+      saveTimerState(); // 초기화 상태 저장
     }
 
     // ────────────────────────────────
@@ -539,7 +686,7 @@
       playBeep();
 
       updateDisplay();
-      updateRing();
+      updateFill();
 
       // 버튼 다시 "시작"으로
       const btn = document.getElementById('btn-main');
@@ -561,14 +708,17 @@
         // 4세션 완료 시 긴 휴식 권유
         if (sessionCount === 0) {
           showToast('🎉 4세션 완료! 긴 휴식을 취해요.');
+          showSystemNotification('🎉 4세션 완료!', '긴 휴식을 취할 시간이에요.');
           setTimeout(() => switchMode('long'), 1500);
         } else {
           showToast(`✅ 세션 완료! 짧게 쉬고 다시 해봐요.`);
+          showSystemNotification('✅ 집중 세션 완료!', '짧은 휴식을 취하고 다시 해봐요.');
           setTimeout(() => switchMode('short'), 1500);
         }
       } else {
         // 휴식 완료 → 다시 집중 모드로
         showToast('☕ 휴식 완료! 다시 집중해볼까요?');
+        showSystemNotification('☕ 휴식 완료!', '다시 집중 모드를 시작해볼까요?');
         setTimeout(() => switchMode('focus'), 1500);
       }
     }
@@ -588,15 +738,16 @@
     }
 
     // ────────────────────────────────
-    //  원형 프로그레스 업데이트
-    //  원둘레(628px) 중 얼마나 채울지 계산
-    //  마치 시계 초침처럼 — 시간이 줄어들수록 링이 채워짐
+    //  원형 채우기 업데이트
+    //  경과 비율(0%→100%)을 --pct 변수로 넘기면
+    //  CSS conic-gradient가 그만큼 원을 채워줌
+    //  @property로 등록된 --pct는 숫자 보간이 되어 1초마다 부드럽게 채워짐
     // ────────────────────────────────
-    function updateRing() {
-      const ratio  = leftSeconds / totalSeconds;  // 남은 비율 (1.0 → 0.0)
-      // dashoffset = 둘레 × 비율: offset이 0이면 꽉 참, 628이면 아무것도 안 보임
-      const offset = CIRCUMFERENCE * ratio;
-      document.getElementById('ring').style.strokeDashoffset = offset;
+    function updateFill() {
+      // 경과 비율: 시작(0%) → 끝(100%)
+      const pct = (1 - leftSeconds / totalSeconds) * 100;
+      document.getElementById('ring-solid-fill').style.setProperty('--pct', pct);
+      document.getElementById('ring-rgb-fill').style.setProperty('--pct', pct);
     }
 
     // ────────────────────────────────
@@ -648,6 +799,33 @@
     }
 
     // ────────────────────────────────
+    //  브라우저 시스템 알림 — Notification API
+    //  다른 탭이나 다른 페이지에 있어도 팝업 알림을 띄울 수 있음
+    //  단, 처음 한 번 권한 허용이 필요 (브라우저가 직접 물어봄)
+    // ────────────────────────────────
+    async function requestNotificationPermission() {
+      if (!('Notification' in window)) return; // 브라우저가 알림 미지원
+      if (Notification.permission === 'default') {
+        // 아직 허용/거부 안 했으면 권한 요청
+        await Notification.requestPermission();
+      }
+    }
+
+    function showSystemNotification(title, body) {
+      // 권한이 허용된 경우에만 시스템 알림 띄움
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      const n = new Notification(title, {
+        body,
+        // 알림 클릭 시 뽀모도로 탭으로 포커스
+        requireInteraction: false,
+      });
+      // 4초 후 자동으로 닫힘
+      setTimeout(() => n.close(), 4000);
+      // 알림 클릭하면 이 탭으로 포커스
+      n.onclick = () => { window.focus(); n.close(); };
+    }
+
+    // ────────────────────────────────
     //  토스트 메시지 표시
     // ────────────────────────────────
     function showToast(msg) {
@@ -692,21 +870,27 @@
       document.getElementById('stat-streak').textContent   = stats.streak;
     }
 
-    // ── Firestore에서 오늘 통계 불러오기 (다른 기기에서 저장한 데이터 반영) ──
+    // ── Firestore 동기화 — localStorage 우선 패턴 ──
+    // localStorage에 오늘 데이터가 있으면 그게 정답 (잘못된 Firestore 데이터가 덮어쓰는 걸 방지)
+    // localStorage가 없거나 날짜가 다를 때만 Firestore에서 로드 (새 기기 첫 접속용)
     async function syncFromFirestore() {
       try {
-        const snap = await db.collection('mindos').doc('pomodoro').get();
-        if (snap.exists) {
-          const remote = snap.data();
-          // 날짜가 오늘이면 Firestore 데이터로 덮어씀
-          if (remote.date === todayKey) {
-            stats = remote;
-            localStorage.setItem('mindos_pomodoro', JSON.stringify(stats));
-            renderStats();
+        const local = localStorage.getItem('mindos_pomodoro');
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (parsed.date === todayKey) {
+            // 오늘 데이터가 localStorage에 있음 → Firestore 무시, 끝
+            return;
           }
         }
+        // localStorage가 없거나 어제 날짜 → Firestore에서 오늘 데이터 가져오기 시도
+        const snap = await db.collection('mindos').doc('pomodoro').get();
+        if (snap.exists && snap.data().date === todayKey) {
+          stats = snap.data();
+          localStorage.setItem('mindos_pomodoro', JSON.stringify(stats));
+          renderStats();
+        }
       } catch(e) {
-        // Firestore 실패 → localStorage 유지
         console.log('Firestore 동기화 실패, localStorage 사용');
       }
     }
@@ -714,9 +898,24 @@
     // 페이지 로드 시 Firestore 동기화 (비동기 — 타이머 동작에 영향 없음)
     syncFromFirestore();
 
-    // 초기 화면 렌더링
-    updateDisplay();
-    updateRing();
+    // 브라우저 알림 권한 요청 — 다른 탭/페이지에 있을 때 팝업 알림 받으려면 필요
+    requestNotificationPermission();
+
+    // ── 이전 타이머 상태 복원 시도 ──
+    // 다른 페이지 갔다가 돌아왔을 때 타이머가 이어지도록
+    if (!loadTimerState()) {
+      // 복원할 상태 없음 → 기본 화면 렌더링
+      updateDisplay();
+      updateFill();
+    }
+
+    // ── 페이지 이탈 시 타이머 상태 저장 ──
+    // beforeunload: 탭 닫기/다른 페이지 이동 직전
+    window.addEventListener('beforeunload', saveTimerState);
+    // visibilitychange: 탭을 숨기거나 다른 앱으로 전환할 때
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) saveTimerState();
+    });
   </script>
 
 </body>

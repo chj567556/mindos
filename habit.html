@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>생활습관 — Bio-Log</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+
+  <!-- Firebase SDK — 데이터 클라우드 저장용 -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    // Firebase 프로젝트 연결 설정
+    firebase.initializeApp({
+      apiKey: "AIzaSyBC_aeuuKXoJIodrmfeQ52bvWpzcZMrtPM",
+      authDomain: "mind-os-b23a5.firebaseapp.com",
+      projectId: "mind-os-b23a5",
+      storageBucket: "mind-os-b23a5.firebasestorage.app",
+      messagingSenderId: "88544003760",
+      appId: "1:88544003760:web:58af8d47183d2e259d9d75"
+    });
+    const db = firebase.firestore();
+  </script>
+
+  <style>
+    /* ── 기본 리셋 ── */
+    *{ margin:0; padding:0; box-sizing:border-box; }
+    body{
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      background: #f5f0ff;  /* Biolog 보라 계열 배경 */
+      overflow-x: hidden;
+    }
+
+    /* ── 페이지 진입 페이드업 애니메이션 ── */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(14px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    body { animation: fadeUp .35s cubic-bezier(.4,0,.2,1); }
+
+    /* ── 배경 blob (흐릿한 색 덩어리로 분위기 만들기) ── */
+    .blob { position:fixed; border-radius:50%; filter:blur(72px); pointer-events:none; z-index:0; opacity:0.55; }
+    .b1 { width:420px; height:420px; background:#c4b5fd; top:-100px;  left:-80px;  animation:bm1 10s ease-in-out infinite; }
+    .b2 { width:320px; height:320px; background:#f9a8d4; top:30px;    right:-70px; animation:bm2 13s ease-in-out infinite; }
+    .b3 { width:300px; height:300px; background:#a5f3fc; bottom:-70px;left:25%;    animation:bm3 11s ease-in-out infinite; }
+    @keyframes bm1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(18px,22px) scale(1.05)} }
+    @keyframes bm2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-16px,18px) scale(0.97)} }
+    @keyframes bm3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(14px,-18px) scale(1.03)} }
+
+    /* ── 전체 콘텐츠 wrapper ── */
+    .page-wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 720px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 14px 60px;
+    }
+
+    /* ── 뒤로가기 버튼 ── */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(167,139,250,0.4);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 22px;
+      transition: all .2s;
+      color: #5b21b6;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .back-btn:hover { background:rgba(255,255,255,.95); transform:translateX(-3px); }
+
+    /* ── 헤더 ── */
+    .page-badge {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 3px 13px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      font-weight: 500;
+      background: #ede9fe;
+      color: #5b21b6;
+      border: 1px solid #c4b5fd;
+    }
+    .page-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(22px, 5vw, 30px);
+      font-weight: 600;
+      font-style: italic;
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 6px;
+    }
+    .page-desc {
+      font-size: 13px;
+      color: #6b5a8a;
+      margin-bottom: 22px;
+    }
+
+    /* ── 오늘 날짜 & RGB 진행률 바 카드 ── */
+    .today-bar {
+      background: rgba(255,255,255,.88);
+      backdrop-filter: blur(14px);
+      border: 1.5px solid rgba(255,255,255,.95);
+      border-radius: 22px;
+      padding: 18px 20px 16px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 24px rgba(100,60,200,0.09);
+    }
+    /* 상단 행: 날짜 + 초기화 버튼 */
+    .today-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .today-date {
+      font-size: 13px;
+      font-weight: 600;
+      color: #4c1d95;
+    }
+    /* 초기화 버튼 */
+    .reset-btn {
+      padding: 5px 12px;
+      background: rgba(0,0,0,.05);
+      border: none;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 500;
+      color: #6b7280;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all .18s;
+    }
+    .reset-btn:hover { background:rgba(239,68,68,.1); color:#dc2626; }
+
+    /* 진행률 숫자 + % 행 */
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+    .progress-label-left {
+      font-size: 11px;
+      color: #9ca3af;
+      letter-spacing: .5px;
+    }
+    /* 달성 % 숫자 — 크게 표시 */
+    .progress-pct {
+      font-size: 22px;
+      font-weight: 700;
+      /* 퍼센트 숫자도 RGB 그라디언트로 */
+      background: linear-gradient(90deg, #f472b6, #fb923c, #facc15, #4ade80, #60a5fa, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      background-size: 300% 100%;
+      animation: rgbFlow 4s linear infinite;
+      line-height: 1;
+    }
+    .progress-count {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-left: 2px;
+    }
+
+    /* RGB 진행률 바 트랙 */
+    .progress-track {
+      height: 10px;
+      background: rgba(167,139,250,.15);
+      border-radius: 99px;
+      overflow: hidden;
+      position: relative;
+    }
+    /* RGB 흐르는 그라디언트 채우기 바
+       비유: 무지개 컨베이어 벨트가 왼쪽에서 오른쪽으로 흘러가는 것 */
+    .progress-fill {
+      height: 100%;
+      border-radius: 99px;
+      /* 6색 무지개 그라디언트 */
+      background: linear-gradient(90deg,
+        #f472b6, #fb923c, #facc15, #4ade80, #60a5fa, #c084fc, #f472b6);
+      background-size: 300% 100%;   /* 실제 너비의 3배 크기로 만들어서 흐르게 */
+      animation: rgbFlow 3s linear infinite;
+      transition: width .6s cubic-bezier(.4,0,.2,1);
+      /* 빛나는 글로우 효과 */
+      box-shadow: 0 0 10px rgba(167,139,250,.5), 0 0 20px rgba(167,139,250,.2);
+    }
+
+    /* RGB 그라디언트가 왼쪽에서 오른쪽으로 흐르는 애니메이션 */
+    @keyframes rgbFlow {
+      0%   { background-position: 0% 50%; }
+      100% { background-position: 100% 50%; }
+    }
+
+    /* ── 섹션 제목 ── */
+    .section-title {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #9ca3af;
+      margin: 22px 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(167,139,250,0.2);
+    }
+
+    /* ── 공통 카드 스타일 ── */
+    .card {
+      background: rgba(255,255,255,.84);
+      backdrop-filter: blur(14px);
+      border: 1.5px solid rgba(255,255,255,.95);
+      border-radius: 20px;
+      box-shadow: 0 4px 18px rgba(100,60,200,0.07);
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    /* ── 퀘스트 아이템 ── */
+    .quest-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 16px;
+      border-bottom: 1px solid rgba(167,139,250,0.1);
+      transition: background .15s;
+      cursor: pointer;
+      /* 마지막 아이템은 구분선 없애기 */
+    }
+    .quest-item:last-of-type { border-bottom: none; }
+    .quest-item:hover { background: rgba(167,139,250,.06); }
+
+    /* 체크박스 — 기본 체크박스 숨기고 커스텀으로 교체 */
+    .quest-check {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid #c4b5fd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all .2s;
+      font-size: 12px;
+      background: transparent;
+    }
+    /* 완료 상태 체크박스 */
+    .quest-item.done .quest-check {
+      background: linear-gradient(135deg, #a78bfa, #7c3aed);
+      border-color: #7c3aed;
+      color: white;
+    }
+
+    /* 퀘스트 텍스트 */
+    .quest-text {
+      flex: 1;
+      font-size: 14px;
+      color: #374151;
+      transition: all .2s;
+    }
+    /* 완료 시 취소선 + 흐리게 */
+    .quest-item.done .quest-text {
+      text-decoration: line-through;
+      color: #9ca3af;
+    }
+
+    /* 퀘스트 삭제 버튼
+       PC: 마우스 올릴 때만 보임 / 모바일: 항상 살짝 보임 */
+    .quest-del {
+      opacity: 0;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 13px;
+      color: #d1d5db;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all .18s;
+      background: none;
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .quest-item:hover .quest-del { opacity: 1; }
+    .quest-del:hover { color: #ef4444; background: rgba(239,68,68,.1); }
+    /* 터치 기기에서는 항상 보이게 (hover가 안 되니까) */
+    @media (hover: none) {
+      .quest-del { opacity: 0.35; }
+    }
+
+    /* ── 물 트래커 컵 UI ── */
+    /* 컵 6개를 가로로 나열하는 컨테이너 */
+    .water-cups {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+      margin-right: 2px;
+    }
+    /* 컵 하나 — CSS로 컵 모양 만들기 */
+    .wcup {
+      width: 16px;
+      height: 20px;
+      border: 2px solid #93c5fd;   /* 하늘색 테두리 = 빈 컵 */
+      border-top: none;            /* 위쪽은 열려있어야 컵처럼 보임 */
+      border-radius: 0 0 5px 5px; /* 아래만 둥글게 = 컵 바닥 */
+      background: transparent;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+      position: relative;
+      flex-shrink: 0;
+    }
+    /* 컵 위쪽 가장자리 (손잡이 없는 컵의 입구 선) */
+    .wcup::before {
+      content: '';
+      position: absolute;
+      top: -4px; left: -3px; right: -3px;
+      height: 3px;
+      background: #93c5fd;
+      border-radius: 2px;
+    }
+    /* 채워진 컵 — 파란 물이 찬 상태 */
+    .wcup.filled {
+      background: linear-gradient(to top, #2563eb, #60a5fa);
+      border-color: #3b82f6;
+    }
+    .wcup.filled::before { background: #3b82f6; }
+    /* 컵 탭할 때 살짝 튀는 느낌 */
+    .wcup:active { transform: scale(0.88); }
+    /* 물 ml 표시 텍스트 */
+    .water-ml {
+      font-size: 11px;
+      color: #6b7280;
+      font-weight: 500;
+      white-space: nowrap;
+      margin-right: 4px;
+    }
+    /* 퀘스트 완료 시 물컵도 흐리게 */
+    .quest-item.done .water-cups { opacity: 0.45; }
+
+    /* ── 퀘스트 추가 행 ── */
+    .add-row {
+      display: flex;
+      gap: 8px;
+      padding: 10px 14px;
+      background: rgba(167,139,250,.06);
+      border-top: 1px dashed rgba(167,139,250,.3);
+    }
+    .add-input {
+      flex: 1;
+      padding: 8px 12px;
+      background: rgba(255,255,255,.8);
+      border: 1.5px solid rgba(167,139,250,.3);
+      border-radius: 12px;
+      font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      color: #374151;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .add-input:focus { border-color: #a78bfa; }
+    .add-input::placeholder { color: #c4b5fd; }
+    .add-btn {
+      padding: 8px 14px;
+      background: linear-gradient(135deg, #a78bfa, #7c3aed);
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all .2s;
+    }
+    .add-btn:hover { transform: scale(1.04); box-shadow: 0 4px 14px rgba(124,58,237,.3); }
+
+    /* ── 루틴 탭 (아침/점심/저녁/취침전) ── */
+    .routine-tabs {
+      display: flex;
+      gap: 7px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .rtab {
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    /* 활성 탭 — 흰 배경 + 보라 테두리 */
+    .rtab.active {
+      background: white;
+      border-color: #c4b5fd;
+      color: #5b21b6;
+      box-shadow: 0 2px 12px rgba(124,58,237,.15);
+    }
+    /* 비활성 탭 — 반투명 */
+    .rtab:not(.active) {
+      background: rgba(255,255,255,.45);
+      color: #6b7280;
+    }
+    .rtab:not(.active):hover { background: rgba(255,255,255,.72); }
+
+    /* 탭 안에 완료 개수 뱃지 */
+    .rtab-count {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 99px;
+      background: rgba(167,139,250,.2);
+      color: #7c3aed;
+    }
+    .rtab.active .rtab-count { background: #ede9fe; }
+
+    /* ── 루틴 패널 — 탭 하나에 해당하는 콘텐츠 ── */
+    .routine-panel { display: none; }
+    .routine-panel.active { display: block; }
+
+    /* ── 빈 상태 안내 메시지 ── */
+    .empty-hint {
+      text-align: center;
+      padding: 24px 16px;
+      color: #c4b5fd;
+      font-size: 13px;
+    }
+
+    /* ── 완료 축하 팝 애니메이션 ── */
+    @keyframes pop {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.22); }
+      100% { transform: scale(1); }
+    }
+    .pop { animation: pop .25s cubic-bezier(.4,0,.2,1); }
+
+    /* ── 토스트 알림 (하단 중앙 플로팅 메시지) ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(30,18,64,.92);
+      backdrop-filter: blur(14px);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transition: all .3s cubic-bezier(.4,0,.2,1);
+      pointer-events: none;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+    /* ── 모바일 대응 ── */
+    @media (max-width: 480px) {
+      .today-bar { flex-wrap: wrap; gap: 10px; }
+      .reset-btn { width: 100%; text-align: center; }
+      .rtab { padding: 7px 12px; font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 배경 blob -->
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <!-- 하단 토스트 알림 -->
+  <div id="toast"></div>
+
+  <div class="page-wrap">
+
+    <!-- 뒤로가기 — biolog.html로 이동 -->
+    <button class="back-btn" onclick="location.href='biolog.html'">← Bio-Log</button>
+
+    <!-- 헤더 -->
+    <div class="page-badge">🌙 Daily Habits</div>
+    <div class="page-title">생활습관</div>
+    <div class="page-desc">퀘스트를 깨고 루틴을 쌓아가세요. 매일 자정에 자동으로 초기화돼요.</div>
+
+    <!-- 오늘 날짜 + RGB 진행률 바 -->
+    <div class="today-bar">
+      <!-- 상단: 날짜 + 초기화 버튼 -->
+      <div class="today-top">
+        <div class="today-date" id="todayDate">오늘</div>
+        <button class="reset-btn" onclick="resetToday()">오늘 초기화</button>
+      </div>
+      <!-- 진행률 숫자 행 -->
+      <div class="progress-label">
+        <span class="progress-label-left">오늘의 달성률</span>
+        <div style="display:flex;align-items:baseline;gap:4px">
+          <span class="progress-pct" id="progressPct">0%</span>
+          <span class="progress-count" id="progressText">(0/0)</span>
+        </div>
+      </div>
+      <!-- RGB 흐르는 바 -->
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         퀘스트 섹션 — 시간대 상관없이 깰 수 있는 것들
+    ══════════════════════════════════════════ -->
+    <div class="section-title">⚔️ 오늘의 퀘스트</div>
+
+    <div class="card" id="questList">
+      <!-- 퀘스트 아이템들은 JS에서 동적으로 생성 -->
+      <div class="empty-hint" id="questEmpty">+ 아래에서 퀘스트를 추가해보세요</div>
+    </div>
+
+    <!-- 퀘스트 추가 입력창 -->
+    <div class="card">
+      <div class="add-row">
+        <input class="add-input" id="questInput" type="text" placeholder="새 퀘스트 입력... (예: 물 2L 마시기)" />
+        <button class="add-btn" onclick="addQuest()">추가</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         루틴 섹션 — 시간대별 체크리스트
+    ══════════════════════════════════════════ -->
+    <div class="section-title">🕐 시간대별 루틴</div>
+
+    <!-- 아침/점심/저녁/취침전 탭 -->
+    <div class="routine-tabs" id="routineTabs">
+      <div class="rtab active" onclick="switchTab('아침')" id="tab-아침">
+        ☀️ 아침 <span class="rtab-count" id="cnt-아침">0/0</span>
+      </div>
+      <div class="rtab" onclick="switchTab('점심')" id="tab-점심">
+        🌤 점심 <span class="rtab-count" id="cnt-점심">0/0</span>
+      </div>
+      <div class="rtab" onclick="switchTab('저녁')" id="tab-저녁">
+        🌆 저녁 <span class="rtab-count" id="cnt-저녁">0/0</span>
+      </div>
+      <div class="rtab" onclick="switchTab('취침전')" id="tab-취침전">
+        🌙 취침전 <span class="rtab-count" id="cnt-취침전">0/0</span>
+      </div>
+    </div>
+
+    <!-- 각 탭의 콘텐츠 패널 -->
+    <div id="panel-아침"  class="routine-panel active"></div>
+    <div id="panel-점심"  class="routine-panel"></div>
+    <div id="panel-저녁"  class="routine-panel"></div>
+    <div id="panel-취침전" class="routine-panel"></div>
+
+  </div><!-- /page-wrap -->
+
+  <script>
+    // ══════════════════════════════════════════
+    // 1. 데이터 구조 초기값
+    //    quests: 시간 무관 퀘스트 배열
+    //    routines: 시간대별 루틴 배열
+    //    lastReset: 마지막으로 체크를 초기화한 날짜 (자정 자동 초기화용)
+    // ══════════════════════════════════════════
+    const DEFAULT_DATA = {
+      quests: [],
+      routines: {
+        아침: [],
+        점심: [],
+        저녁: [],
+        취침전: []
+      },
+      lastReset: '',
+      waterCups: 0   // 오늘 마신 물컵 수 (컵 1개 = 250ml, 최대 6개 = 1.5L)
+    };
+
+    // 현재 선택된 루틴 탭
+    let currentTab = '아침';
+    // 앱 전체 데이터
+    let data = JSON.parse(JSON.stringify(DEFAULT_DATA));
+
+    // ── 2. 오늘 날짜를 'YYYY-MM-DD' 형식으로 반환 ──
+    function todayStr() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    // ── 3. 데이터 불러오기 (localStorage 우선, 없으면 Firestore) ──
+    async function loadData() {
+      // localStorage에서 먼저 확인
+      const local = localStorage.getItem('mindos_habit');
+      if (local) {
+        try {
+          data = JSON.parse(local);
+          // 오래된 데이터에 routines 키가 없으면 기본값 채워넣기
+          if (!data.routines)  data.routines  = DEFAULT_DATA.routines;
+          if (!data.quests)    data.quests    = [];
+          if (data.waterCups === undefined) data.waterCups = 0; // 구버전 데이터 대응
+          checkDailyReset();  // 날짜 바뀌었으면 체크 초기화
+          renderAll();
+          return;
+        } catch(e) { /* 파싱 실패 시 아래로 */ }
+      }
+
+      // localStorage 없을 때 Firestore에서 가져옴 (다른 기기에서 처음 접속)
+      try {
+        const snap = await db.collection('mindos').doc('habit').get();
+        if (snap.exists) {
+          data = snap.data();
+          if (!data.routines)  data.routines  = DEFAULT_DATA.routines;
+          if (!data.quests)    data.quests    = [];
+          if (data.waterCups === undefined) data.waterCups = 0;
+        }
+      } catch(e) { console.error('Firestore 불러오기 실패:', e); }
+
+      checkDailyReset();
+      renderAll();
+    }
+
+    // ── 4. 데이터 저장 (localStorage + Firestore 동시) ──
+    function saveData() {
+      localStorage.setItem('mindos_habit', JSON.stringify(data));
+      db.collection('mindos').doc('habit').set(data).catch(console.error);
+      renderAll();  // 저장할 때마다 화면 갱신
+    }
+
+    // ── 5. 자정 자동 초기화 — 날짜가 바뀌면 모든 체크를 false로 ──
+    function checkDailyReset() {
+      const today = todayStr();
+      if (data.lastReset !== today) {
+        // 퀘스트 완료 상태 초기화
+        data.quests.forEach(q => q.done = false);
+        // 루틴 완료 상태 초기화
+        Object.keys(data.routines).forEach(tab => {
+          data.routines[tab].forEach(r => r.done = false);
+        });
+        data.waterCups = 0;  // 물 섭취량도 매일 초기화
+        data.lastReset = today;
+        // 초기화 후 저장 (단, saveData 호출 시 renderAll이 실행되므로 직접 저장만)
+        localStorage.setItem('mindos_habit', JSON.stringify(data));
+        db.collection('mindos').doc('habit').set(data).catch(console.error);
+      }
+    }
+
+    // ── 6. 수동 초기화 버튼 ──
+    function resetToday() {
+      if (!confirm('오늘의 모든 체크를 초기화할까요?')) return;
+      data.quests.forEach(q => q.done = false);
+      Object.keys(data.routines).forEach(tab => {
+        data.routines[tab].forEach(r => r.done = false);
+      });
+      saveData();
+      showToast('✅ 오늘 체크가 초기화됐어요');
+    }
+
+    // ══════════════════════════════════════════
+    // 7. 화면 렌더링 함수들
+    // ══════════════════════════════════════════
+
+    // 전체 화면 갱신 (날짜, 진행률, 퀘스트, 루틴 탭 모두)
+    function renderAll() {
+      renderDate();
+      renderProgress();
+      renderQuests();
+      renderRoutineTabs();
+      renderRoutinePanel(currentTab);
+    }
+
+    // 오늘 날짜 표시
+    function renderDate() {
+      const d = new Date();
+      const days = ['일', '월', '화', '수', '목', '금', '토'];
+      document.getElementById('todayDate').textContent =
+        `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+    }
+
+    // 전체 진행률 바 업데이트
+    function renderProgress() {
+      // 퀘스트 + 모든 루틴 탭의 전체 개수와 완료 개수를 합산
+      let total = data.quests.length;
+      let done  = data.quests.filter(q => q.done).length;
+      Object.keys(data.routines).forEach(tab => {
+        const items = data.routines[tab];
+        total += items.length;
+        done  += items.filter(r => r.done).length;
+      });
+
+      // 달성률 계산 (0~100%)
+      const pct = total === 0 ? 0 : Math.round(done / total * 100);
+
+      // 퍼센트 숫자 텍스트 업데이트
+      document.getElementById('progressPct').textContent  = pct + '%';
+      // 괄호 안 개수 텍스트 업데이트
+      document.getElementById('progressText').textContent = `(${done}/${total})`;
+      // 바 너비 업데이트 (CSS transition이 부드럽게 늘려줌)
+      document.getElementById('progressFill').style.width = pct + '%';
+    }
+
+    // ── 퀘스트 목록 렌더링 ──
+    function renderQuests() {
+      const list = document.getElementById('questList');
+      const empty = document.getElementById('questEmpty');
+
+      // 기존 퀘스트 아이템들만 제거 (empty 힌트 제외)
+      list.querySelectorAll('.quest-item').forEach(el => el.remove());
+
+      if (data.quests.length === 0) {
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      // 퀘스트 하나하나를 DOM으로 만들어서 카드에 추가
+      data.quests.forEach((q, idx) => {
+        const item = document.createElement('div');
+        item.className = 'quest-item' + (q.done ? ' done' : '');
+        item.dataset.idx = idx;
+
+        // "물" 키워드가 있으면 물컵 트래커 UI로 렌더링
+        const isWater = q.text.includes('물') || q.text.toLowerCase().includes('water');
+
+        if (isWater) {
+          // 현재 채워진 컵 수 (0~6)
+          const cups = data.waterCups || 0;
+          const MAX_CUPS = 6; // 6컵 × 250ml = 1500ml
+          // 컵 6개 HTML 생성 — filled 클래스가 있으면 파란색으로 채워짐
+          const cupHtml = Array.from({ length: MAX_CUPS }, (_, i) =>
+            `<div class="wcup ${i < cups ? 'filled' : ''}" onclick="tapWater(${idx}, ${i}, event)" title="${(i+1)*250}ml"></div>`
+          ).join('');
+
+          item.innerHTML = `
+            <div class="quest-check">${q.done ? '✓' : ''}</div>
+            <div class="quest-text">${escHtml(q.text)}</div>
+            <span class="water-ml">${cups * 250}ml</span>
+            <div class="water-cups" onclick="event.stopPropagation()">${cupHtml}</div>
+            <button class="quest-del" onclick="deleteQuest(${idx}, event)" title="삭제">✕</button>
+          `;
+          // 물 퀘스트는 컵으로만 완료 — 줄 클릭 자체는 무시
+          item.addEventListener('click', function(e) {
+            if (e.target.classList.contains('quest-del')) return;
+            if (e.target.classList.contains('wcup'))      return;
+          });
+
+        } else {
+          // 일반 퀘스트 — 체크박스 클릭으로 완료
+          item.innerHTML = `
+            <div class="quest-check">${q.done ? '✓' : ''}</div>
+            <div class="quest-text">${escHtml(q.text)}</div>
+            <button class="quest-del" onclick="deleteQuest(${idx}, event)" title="삭제">✕</button>
+          `;
+          // 아이템 클릭 시 완료 토글
+          item.addEventListener('click', function(e) {
+            if (e.target.classList.contains('quest-del')) return;
+            toggleQuest(idx);
+          });
+        }
+
+        list.appendChild(item);
+      });
+    }
+
+    // ── 루틴 탭 버튼의 완료 개수 배지 업데이트 ──
+    function renderRoutineTabs() {
+      ['아침','점심','저녁','취침전'].forEach(tab => {
+        const items = data.routines[tab] || [];
+        const done  = items.filter(r => r.done).length;
+        const total = items.length;
+        document.getElementById('cnt-' + tab).textContent = `${done}/${total}`;
+      });
+    }
+
+    // ── 현재 탭의 루틴 패널 렌더링 ──
+    function renderRoutinePanel(tab) {
+      const panel = document.getElementById('panel-' + tab);
+      const items = data.routines[tab] || [];
+      panel.innerHTML = '';  // 기존 내용 초기화
+
+      // 루틴 목록 카드
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      if (items.length === 0) {
+        // 빈 상태 안내
+        card.innerHTML = `<div class="empty-hint">+ 아래에서 ${tab} 루틴을 추가해보세요</div>`;
+      } else {
+        items.forEach((r, idx) => {
+          const item = document.createElement('div');
+          item.className = 'quest-item' + (r.done ? ' done' : '');
+
+          item.innerHTML = `
+            <div class="quest-check">${r.done ? '✓' : ''}</div>
+            <div class="quest-text">${escHtml(r.text)}</div>
+            <button class="quest-del" onclick="deleteRoutine('${tab}', ${idx}, event)" title="삭제">✕</button>
+          `;
+
+          item.addEventListener('click', function(e) {
+            if (e.target.classList.contains('quest-del')) return;
+            toggleRoutine(tab, idx);
+          });
+
+          card.appendChild(item);
+        });
+      }
+
+      // 루틴 추가 입력창
+      const addRow = document.createElement('div');
+      addRow.className = 'add-row';
+      addRow.innerHTML = `
+        <input class="add-input" id="routineInput-${tab}" type="text"
+          placeholder="${tab} 루틴 입력... (예: 스트레칭 5분)"
+          onkeydown="if(event.key==='Enter') addRoutine('${tab}')" />
+        <button class="add-btn" onclick="addRoutine('${tab}')">추가</button>
+      `;
+      card.appendChild(addRow);
+
+      panel.appendChild(card);
+    }
+
+    // ══════════════════════════════════════════
+    // 8. 액션 함수들 (추가, 삭제, 토글)
+    // ══════════════════════════════════════════
+
+    // ── 퀘스트 추가 ──
+    function addQuest() {
+      const input = document.getElementById('questInput');
+      const text  = input.value.trim();
+      if (!text) return;
+
+      // 새 퀘스트 객체 — id는 타임스탬프로 유니크하게
+      data.quests.push({ id: Date.now().toString(), text, done: false });
+      input.value = '';
+      saveData();
+      showToast('⚔️ 퀘스트가 추가됐어요!');
+    }
+
+    // 엔터로도 퀘스트 추가 가능하게
+    document.getElementById('questInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addQuest();
+    });
+
+    // ── 퀘스트 완료 토글 ──
+    function toggleQuest(idx) {
+      data.quests[idx].done = !data.quests[idx].done;
+      const msg = data.quests[idx].done ? '🎉 퀘스트 클리어!' : '↩ 퀘스트 취소';
+      saveData();
+      showToast(msg);
+    }
+
+    // ── 퀘스트 삭제 ──
+    function deleteQuest(idx, e) {
+      e.stopPropagation();  // 부모 클릭 이벤트 막기
+      data.quests.splice(idx, 1);
+      saveData();
+    }
+
+    // ── 물컵 탭 — 컵을 눌러서 물 섭취량 기록 ──
+    // cupIdx: 0~5 (몇 번째 컵인지), questIdx: 어떤 퀘스트인지
+    function tapWater(questIdx, cupIdx, e) {
+      e.stopPropagation(); // 퀘스트 줄 클릭 이벤트 막기
+
+      const current = data.waterCups || 0;
+
+      if (cupIdx < current) {
+        // 이미 채워진 컵을 누르면 → 그 컵부터 비우기 (실수 수정)
+        data.waterCups = cupIdx;
+      } else {
+        // 빈 컵을 누르면 → 그 컵까지 채우기
+        data.waterCups = cupIdx + 1;
+      }
+
+      // 6컵(1500ml) 달성 시 퀘스트 자동 완료
+      if (data.waterCups >= 6) {
+        data.quests[questIdx].done = true;
+        showToast('💧 1.5L 달성! 퀘스트 클리어!');
+      } else {
+        // 미달성 상태면 퀘스트 완료 취소
+        data.quests[questIdx].done = false;
+        showToast(`💧 ${data.waterCups * 250}ml / 1500ml`);
+      }
+
+      saveData(); // 저장 + 화면 갱신
+    }
+
+    // ── 루틴 추가 ──
+    function addRoutine(tab) {
+      const input = document.getElementById('routineInput-' + tab);
+      if (!input) return;
+      const text = input.value.trim();
+      if (!text) return;
+
+      if (!data.routines[tab]) data.routines[tab] = [];
+      data.routines[tab].push({ id: Date.now().toString(), text, done: false });
+      saveData();
+      renderRoutinePanel(tab);  // 패널만 다시 그리기
+      renderRoutineTabs();
+      renderProgress();
+      showToast(`🕐 ${tab} 루틴이 추가됐어요!`);
+    }
+
+    // ── 루틴 완료 토글 ──
+    function toggleRoutine(tab, idx) {
+      data.routines[tab][idx].done = !data.routines[tab][idx].done;
+      const msg = data.routines[tab][idx].done ? '✅ 루틴 완료!' : '↩ 루틴 취소';
+      saveData();
+      renderRoutinePanel(tab);
+      renderRoutineTabs();
+      renderProgress();
+      showToast(msg);
+    }
+
+    // ── 루틴 삭제 ──
+    function deleteRoutine(tab, idx, e) {
+      e.stopPropagation();
+      data.routines[tab].splice(idx, 1);
+      saveData();
+      renderRoutinePanel(tab);
+      renderRoutineTabs();
+      renderProgress();
+    }
+
+    // ══════════════════════════════════════════
+    // 9. 탭 전환
+    // ══════════════════════════════════════════
+    function switchTab(tab) {
+      // 이전 탭 비활성화
+      document.getElementById('tab-' + currentTab).classList.remove('active');
+      document.getElementById('panel-' + currentTab).classList.remove('active');
+
+      // 새 탭 활성화
+      currentTab = tab;
+      document.getElementById('tab-' + tab).classList.add('active');
+      const panel = document.getElementById('panel-' + tab);
+      panel.classList.add('active');
+
+      // 새 탭 패널 렌더링 (클릭할 때마다 최신 데이터로)
+      renderRoutinePanel(tab);
+    }
+
+    // ══════════════════════════════════════════
+    // 10. 유틸리티
+    // ══════════════════════════════════════════
+
+    // XSS 방지 — 사용자 입력을 HTML에 넣을 때 특수문자 이스케이프
+    function escHtml(str) {
+      return str
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;');
+    }
+
+    // 토스트 메시지 표시 (2초 후 자동으로 사라짐)
+    let toastTimer;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+    // ══════════════════════════════════════════
+    // 11. 페이지 시작 — 데이터 불러오기
+    // ══════════════════════════════════════════
+    loadData();
+  </script>
+</body>
+</html>

@@ -249,7 +249,7 @@
       <div class="modal-row"><div class="modal-label">브랜드/설명</div><input class="modal-inp" id="m-brand" placeholder="예) 국물 떡볶이 2인분"></div>
       <div class="modal-row"><div class="modal-label">칼로리 (kcal)</div><input class="modal-inp" id="m-kcal" type="number" placeholder="예) 650"></div>
       <div class="modal-row">
-        <div class="modal-label">코인 가격 * <span class="price-hint">라면=40, 치킨=120~140 참고</span></div>
+        <div class="modal-label">코인 가격 * <span class="price-hint">라면=90, 치킨=200~220 참고</span></div>
         <input class="modal-inp" id="m-price" type="number" placeholder="최소 5코인">
       </div>
       <div class="modal-row"><div class="modal-label">카테고리</div><div class="cat-grid-m" id="cat-grid-m"></div></div>
@@ -374,7 +374,9 @@
     const data = {
       coins, history, purchases, shopItems, liftRecords, shoulderChoice,
       bodyWeight: bwEl ? bwEl.value : (_w.bodyWeight || '75'),
-      loggedMuscles: Array.from(loggedMuscles)
+      loggedMuscles: Array.from(loggedMuscles),
+      deletedDefaultIds,  // 삭제한 기본 아이템 ID 목록도 함께 저장
+      shopVersion: 2      // 상점 버전 — 가격 변경 시 버전 올리면 자동 리셋
     };
     localStorage.setItem('mindos_workout', JSON.stringify(data));
     db.collection('mindos').doc('workout').set(data).catch(e => console.error('Firebase 저장 실패:', e));
@@ -462,6 +464,7 @@
   ];
 
   let sets={}, activeMuscle='chest', shoulderChoice='ohp', loggedMuscles=new Set(), history=[], coins=0;
+  let deletedDefaultIds=[];  // 사용자가 삭제한 기본 아이템 ID 목록 (영구 삭제 추적용)
   let cardioData={stairmaster:{min:'',kcal:''},treadmill:{min:'',incline:''},running:{min:'',km:''}};
 
   function lbToKg(v){return v*0.453592;}
@@ -487,8 +490,14 @@
     showToast('🔄','초기화 완료','다시 모아봐요 💪');
   }
 
-  // 목표 진행도 렌더링
-  const GOALS_BASE=[{emoji:'🍜',name:'라면',price:40,days:'~3일',color:'#16a34a',fill:'#4ade80'},{emoji:'🥐',name:'빵&디저트',price:55,days:'~4일',color:'#d97706',fill:'#fbbf24'},{emoji:'🍕',name:'스쿨버거피자',price:100,days:'~7일',color:'#ea580c',fill:'#fb923c'},{emoji:'🍗',name:'황금올리브',price:120,days:'~8일',color:'#b45309',fill:'#f59e0b'},{emoji:'🍕',name:'오지치즈피자',price:160,days:'~11일',color:'#9a3412',fill:'#f97316'}];
+  // 목표 진행도 렌더링 — DEFAULT_SHOP 가격과 맞춰서 관리
+  const GOALS_BASE=[
+    {emoji:'🍜',name:'라면',         price:90,  days:'~4.5일',  color:'#16a34a',fill:'#4ade80'},
+    {emoji:'🥐',name:'빵 & 크루아상', price:140, days:'~7일',   color:'#d97706',fill:'#fbbf24'},
+    {emoji:'🍕',name:'스쿨버거피자', price:230, days:'~11.5일', color:'#ea580c',fill:'#fb923c'},
+    {emoji:'🍗',name:'황금올리브',   price:200, days:'~10일',   color:'#b45309',fill:'#f59e0b'},
+    {emoji:'🍕',name:'오지치즈',     price:280, days:'~14일',   color:'#9a3412',fill:'#f97316'},
+  ];
   function renderGoals(){const goals=[...GOALS_BASE,...shopItems.filter(i=>i.custom).map(i=>({emoji:i.emoji,name:i.name,price:i.price,days:'커스텀',color:'#7c3aed',fill:'#a78bfa'}))].slice(0,6);document.getElementById('goals-grid').innerHTML=goals.map(g=>{const pct=Math.min(100,Math.round((coins/g.price)*100));return `<div class="goal-item2"><div style="display:flex;align-items:center;gap:7px;margin-bottom:5px"><span style="font-size:17px">${g.emoji}</span><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#1f2937">${g.name}</div><div style="font-size:9.5px;color:#9ca3af">${g.price}🪙 · ${g.days}</div></div>${coins>=g.price?'<div style="font-size:8px;background:#dcfce7;color:#166534;padding:2px 6px;border-radius:6px;font-weight:700">가능!</div>':''}</div><div class="prog-bg"><div class="prog-fill" style="width:${pct}%;background:linear-gradient(90deg,${g.fill},${g.color})"></div></div><div style="display:flex;justify-content:space-between;font-size:9.5px;color:#9ca3af"><span style="color:${g.color};font-weight:600">${pct}%</span><span>${Math.min(coins,g.price)}/${g.price}🪙</span></div></div>`;}).join('');}
 
   function toggleColl(id){const b=document.getElementById('body-'+id),a=document.getElementById('arrow-'+id);const open=b.style.display!=='none';b.style.display=open?'none':'block';a.classList.toggle('open',!open);}
@@ -510,7 +519,13 @@
   function updSet(mId,exId,idx,f,v){
     sets[mId][exId][idx][f]=v;
   }
-  function addSet(mId,exId){sets[mId][exId].push({weight:'',reps:''});renderExBlocks();}
+  function addSet(mId,exId){
+    const arr = sets[mId][exId];
+    const last = arr[arr.length - 1]; // 직전 세트 가져오기
+    // 직전 세트가 있으면 그 값 복사, 없으면 빈 값
+    sets[mId][exId].push({ weight: last ? last.weight : '', reps: last ? last.reps : '' });
+    renderExBlocks();
+  }
   function delSet(mId,exId,idx){if(sets[mId][exId].length<=1)return;sets[mId][exId].splice(idx,1);renderExBlocks();}
 
   // 오늘 운동 기록 & 코인 지급
@@ -540,15 +555,19 @@
 
   // ── 치팅 상점 ───────────────────────────────────────────────────
   const DEFAULT_SHOP = [
-    {id:'jikobar',    emoji:'🍗',name:'지코바',          brand:'지코바 양념치킨', kcal:1100,sugar:28,fat:42,sodium:2100,price:140,cat:'chicken',bar:'#ef4444',priceBg:'#fee2e2',priceColor:'#be123c',diff:'🔥~9.5일',diffBg:'#fee2e2',diffColor:'#be123c'},
-    {id:'goldenolive',emoji:'🍗',name:'황금올리브',      brand:'BBQ 황금올리브',  kcal:950, sugar:8, fat:55,sodium:1800,price:120,cat:'chicken',bar:'#f59e0b',priceBg:'#fef9c3',priceColor:'#854d0e',diff:'✨~8일', diffBg:'#fef9c3',diffColor:'#854d0e'},
-    {id:'ganji',      emoji:'🍗',name:'간지치킨',        brand:'허니콤보 스타일', kcal:1050,sugar:22,fat:48,sodium:2000,price:130,cat:'chicken',bar:'#dc2626',priceBg:'#fee2e2',priceColor:'#be123c',diff:'🔥~9일', diffBg:'#fee2e2',diffColor:'#be123c'},
-    {id:'ozcheese',   emoji:'🍕',name:'오지치즈포테이토',brand:'피자스쿨',        kcal:1350,sugar:18,fat:62,sodium:2400,price:160,cat:'pizza',  bar:'#f97316',priceBg:'#ffedd5',priceColor:'#9a3412',diff:'💀~11일',diffBg:'#ffedd5',diffColor:'#9a3412'},
-    {id:'schoolpizza',emoji:'🍕',name:'스쿨버거피자',    brand:'피자스쿨',        kcal:900, sugar:14,fat:38,sodium:2000,price:100,cat:'pizza',  bar:'#f97316',priceBg:'#ffedd5',priceColor:'#9a3412',diff:'✨~7일', diffBg:'#fef9c3',diffColor:'#854d0e'},
-    {id:'malatang',   emoji:'🍜',name:'마라탕',          brand:'마라샹궈 포함',   kcal:850, sugar:12,fat:45,sodium:3200,price:95, cat:'chinese',bar:'#dc2626',priceBg:'#fee2e2',priceColor:'#991b1b',diff:'🌶️~6.5일',diffBg:'#fff1f2',diffColor:'#991b1b'},
-    {id:'ramen',      emoji:'🍜',name:'라면',            brand:'신라면/불닭 등',  kcal:500, sugar:8, fat:18,sodium:1900,price:40, cat:'chinese',bar:'#f59e0b',priceBg:'#fef9c3',priceColor:'#854d0e',diff:'⚡~3일', diffBg:'#dcfce7',diffColor:'#166534'},
-    {id:'cake',       emoji:'🍰',name:'케이크',          brand:'카페 케이크 1조각',kcal:420,sugar:38,fat:22,sodium:280, price:55, cat:'dessert',bar:'#ec4899',priceBg:'#fce7f3',priceColor:'#9d174d',diff:'✨~4일', diffBg:'#fce7f3',diffColor:'#9d174d'},
-    {id:'bread',      emoji:'🥐',name:'빵 & 크루아상',   brand:'베이커리 1~2개',  kcal:480, sugar:20,fat:24,sodium:400, price:55, cat:'dessert',bar:'#f59e0b',priceBg:'#fef9c3',priceColor:'#854d0e',diff:'✨~4일', diffBg:'#fef9c3',diffColor:'#854d0e'},
+    // 치킨 — 1.5주 (200~220코인)
+    {id:'jikobar',    emoji:'🍗',name:'지코바',          brand:'지코바 양념치킨', kcal:1100,sugar:28,fat:42,sodium:2100,price:220,cat:'chicken',bar:'#ef4444',priceBg:'#fee2e2',priceColor:'#be123c',diff:'🔥~11일', diffBg:'#fee2e2',diffColor:'#be123c'},
+    {id:'goldenolive',emoji:'🍗',name:'황금올리브',      brand:'BBQ 황금올리브',  kcal:950, sugar:8, fat:55,sodium:1800,price:200,cat:'chicken',bar:'#f59e0b',priceBg:'#fef9c3',priceColor:'#854d0e',diff:'✨~10일', diffBg:'#fef9c3',diffColor:'#854d0e'},
+    {id:'ganji',      emoji:'🍗',name:'간지치킨',        brand:'허니콤보 스타일', kcal:1050,sugar:22,fat:48,sodium:2000,price:210,cat:'chicken',bar:'#dc2626',priceBg:'#fee2e2',priceColor:'#be123c',diff:'🔥~10.5일',diffBg:'#fee2e2',diffColor:'#be123c'},
+    // 피자 — 2주 (230~280코인)
+    {id:'ozcheese',   emoji:'🍕',name:'오지치즈포테이토',brand:'피자스쿨',        kcal:1350,sugar:18,fat:62,sodium:2400,price:280,cat:'pizza',  bar:'#f97316',priceBg:'#ffedd5',priceColor:'#9a3412',diff:'💀~14일', diffBg:'#ffedd5',diffColor:'#9a3412'},
+    {id:'schoolpizza',emoji:'🍕',name:'스쿨버거피자',    brand:'피자스쿨',        kcal:900, sugar:14,fat:38,sodium:2000,price:230,cat:'pizza',  bar:'#f97316',priceBg:'#ffedd5',priceColor:'#9a3412',diff:'✨~11.5일',diffBg:'#ffedd5',diffColor:'#9a3412'},
+    // 중식 — 라면 4~5일 / 마라탕 1~1.5주
+    {id:'malatang',   emoji:'🍜',name:'마라탕',          brand:'마라샹궈 포함',   kcal:850, sugar:12,fat:45,sodium:3200,price:175,cat:'chinese',bar:'#dc2626',priceBg:'#fee2e2',priceColor:'#991b1b',diff:'🌶️~9일',  diffBg:'#fff1f2',diffColor:'#991b1b'},
+    {id:'ramen',      emoji:'🍜',name:'라면',            brand:'신라면/불닭 등',  kcal:500, sugar:8, fat:18,sodium:1900,price:90, cat:'chinese',bar:'#f59e0b',priceBg:'#fef9c3',priceColor:'#854d0e',diff:'⚡~4.5일', diffBg:'#dcfce7',diffColor:'#166534'},
+    // 디저트 — 1주 (140~150코인)
+    {id:'cake',       emoji:'🍰',name:'케이크',          brand:'카페 케이크 1조각',kcal:420,sugar:38,fat:22,sodium:280, price:150,cat:'dessert',bar:'#ec4899',priceBg:'#fce7f3',priceColor:'#9d174d',diff:'✨~7.5일', diffBg:'#fce7f3',diffColor:'#9d174d'},
+    {id:'bread',      emoji:'🥐',name:'빵 & 크루아상',   brand:'베이커리 1~2개',  kcal:480, sugar:20,fat:24,sodium:400, price:140,cat:'dessert',bar:'#f59e0b',priceBg:'#fef9c3',priceColor:'#854d0e',diff:'✨~7일',   diffBg:'#fef9c3',diffColor:'#854d0e'},
   ];
   let shopItems = [...DEFAULT_SHOP];
   const CATS=['chicken','pizza','chinese','dessert','other'];
@@ -578,7 +597,15 @@
     if(!editMode)document.querySelectorAll('.shop-item').forEach((el,i)=>{const item=sorted[i];if(item)el.onclick=()=>purchase(item.id);});
   }
   function changePrice(id,delta){const item=shopItems.find(i=>i.id===id);if(!item)return;item.price=Math.max(5,item.price+delta);saveWorkout();renderShop(currentFilter);renderGoals();}
-  function deleteItem(id){if(!confirm('이 음식을 삭제할까요?'))return;shopItems=shopItems.filter(i=>i.id!==id);saveWorkout();renderFilterTabs();renderShop(currentFilter);renderGoals();showToast('🗑️','삭제 완료','음식이 삭제됐어요');}
+  function deleteItem(id){
+    if(!confirm('이 음식을 삭제할까요?'))return;
+    // 기본 아이템이면 삭제 목록에 추가 — 새로고침/새 기기에서도 복구 안 됨
+    if(DEFAULT_SHOP.some(i=>i.id===id) && !deletedDefaultIds.includes(id)){
+      deletedDefaultIds.push(id);
+    }
+    shopItems=shopItems.filter(i=>i.id!==id);
+    saveWorkout();renderFilterTabs();renderShop(currentFilter);renderGoals();showToast('🗑️','삭제 완료','음식이 삭제됐어요');
+  }
   function purchase(id){
     if(editMode)return;
     const item=shopItems.find(i=>i.id===id);if(!item)return;
@@ -627,27 +654,45 @@
     if(tab==='workout'){renderMuscleTabs();renderExBlocks();renderLogBtn();renderGoals();}
   }
 
-  // ── 초기 렌더링 (Firestore에서 불러온 후 실행) ──────────────────
+  // ── 초기 렌더링 ──────────────────────────────────────────────────
   async function initWorkout() {
-    try {
-      const snap = await db.collection('mindos').doc('workout').get();
-      if (snap.exists) {
-        _w = snap.data();
-      } else {
-        _w = JSON.parse(localStorage.getItem('mindos_workout') || 'null') || {};
-      }
-    } catch(e) {
-      console.error('Firebase 로드 실패, localStorage로 대체:', e);
-      _w = JSON.parse(localStorage.getItem('mindos_workout') || 'null') || {};
+    // localStorage 먼저 읽기 (항상 최신 — 삭제/수정 내역 보존)
+    const local = localStorage.getItem('mindos_workout');
+    if (local) {
+      try { _w = JSON.parse(local); } catch(e) {}
     }
+    // localStorage 비어있을 때만 Firestore에서 가져옴 (처음 접속하는 기기용)
+    if (!_w || Object.keys(_w).length === 0) {
+      try {
+        const snap = await db.collection('mindos').doc('workout').get();
+        if (snap.exists) _w = snap.data();
+      } catch(e) {
+        console.error('Firebase 로드 실패:', e);
+      }
+    }
+    if (!_w) _w = {};
 
-    liftRecords    = _w.liftRecords    || {};
-    shoulderChoice = _w.shoulderChoice || 'ohp';
-    loggedMuscles  = new Set(_w.loggedMuscles || []);
-    history        = _w.history        || [];
-    coins          = _w.coins          || 0;
-    shopItems      = _w.shopItems      || [...DEFAULT_SHOP];
-    purchases      = _w.purchases      || [];
+    liftRecords       = _w.liftRecords       || {};
+    shoulderChoice    = _w.shoulderChoice    || 'ohp';
+    loggedMuscles     = new Set(_w.loggedMuscles || []);
+    history           = _w.history           || [];
+    coins             = _w.coins             || 0;
+    purchases         = _w.purchases         || [];
+    // 삭제한 기본 아이템 ID 목록 복원
+    deletedDefaultIds = _w.deletedDefaultIds || [];
+    // 상점 버전 체크 — 버전이 다르면 DEFAULT_SHOP으로 리셋 (가격 업데이트 반영)
+    // 커스텀 아이템만 살리고 기본 아이템은 새 가격으로 교체
+    const SHOP_VERSION = 2; // 가격 바꿀 때마다 +1 올리면 자동 리셋됨
+    if (_w.shopItems && _w.shopVersion === SHOP_VERSION) {
+      shopItems = _w.shopItems;
+    } else {
+      // 버전 불일치 → 기본 아이템은 새 가격, 커스텀 아이템만 유지
+      const customs = (_w.shopItems || []).filter(i => i.custom);
+      shopItems = [
+        ...DEFAULT_SHOP.filter(i => !deletedDefaultIds.includes(i.id)),
+        ...customs,
+      ];
+    }
     MUSCLES.forEach(m=>{sets[m.id]={};m.exercises.forEach(e=>{sets[m.id][e.id]=[{weight:'',reps:''}];});});
 
     if(_w.bodyWeight) document.getElementById('bw-inp').value = _w.bodyWeight;
