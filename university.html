@@ -606,7 +606,7 @@
 
         card.innerHTML = `
           <!-- 카드 본체 — 클릭 시 subject.html로 이동 -->
-          <div class="subject-card-body" onclick="openSubject('${sub.id}')">
+          <div class="subject-card-body" onclick="openSubject('${sub.id}', '${encodeURIComponent(sub.name)}', '${encodeURIComponent(sub.icon)}')">
             <div class="subject-icon">${sub.icon}</div>
             <div class="subject-name">${sub.name}</div>
             <div class="subject-desc">${sub.desc}</div>
@@ -640,9 +640,10 @@
     /* =============================================
        과목 카드 클릭 (나중에 연결 예정)
     ============================================= */
-    function openSubject(subjectId) {
-      // subject.html로 이동 — URL 파라미터로 과목ID와 학기ID를 넘겨줌
-      location.href = `subject.html?sub=${subjectId}&sem=${state.selectedId}`;
+    function openSubject(subjectId, name, icon) {
+      // subject.html로 이동 — 과목ID, 학기ID, 이름, 아이콘을 URL 파라미터로 전달
+      // 이름/아이콘을 같이 넘겨야 subject.html에서 SUBJECT_INFO 테이블 없이도 과목 정보를 표시할 수 있음
+      location.href = `subject.html?sub=${subjectId}&sem=${state.selectedId}&name=${name}&icon=${icon}`;
     }
 
 
