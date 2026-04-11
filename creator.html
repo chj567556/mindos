@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <!-- 반응형 필수: viewport 설정 — 모바일에서 글씨 자동 확대 방지 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>크리에이터 — MIND OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+
+  <!-- Firebase SDK — Firestore 연동을 위해 필요 -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* ────────────────────────────────
+       기본 리셋 & 폰트
+    ──────────────────────────────── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      background: #fffbf0;        /* Empire 황금/앰버 배경 */
+      overflow-x: hidden;         /* 가로 스크롤 금지 */
+      color: #1c0a00;
+    }
+
+    /* ── 페이지 진입 애니메이션 ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    body { animation: fadeUp .3s cubic-bezier(.4,0,.2,1); }
+
+    /* ────────────────────────────────
+       배경 Blob — 황금빛 분위기
+    ──────────────────────────────── */
+    .blob {
+      position: fixed; border-radius: 50%;
+      filter: blur(80px); pointer-events: none;
+      z-index: 0; opacity: 0.45;
+    }
+    .b1 { width:400px; height:400px; background:#fcd34d; top:-80px;   left:-60px;  animation: bm1 10s ease-in-out infinite; }
+    .b2 { width:320px; height:320px; background:#fb923c; top:30px;    right:-60px; animation: bm2 13s ease-in-out infinite; }
+    .b3 { width:280px; height:280px; background:#fde68a; bottom:-50px;left:30%;    animation: bm3 11s ease-in-out infinite; }
+    @keyframes bm1 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(18px,22px) scale(1.05)} }
+    @keyframes bm2 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(-15px,18px) scale(0.97)} }
+    @keyframes bm3 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(12px,-18px) scale(1.03)} }
+
+    /* ────────────────────────────────
+       전체 레이아웃 래퍼
+    ──────────────────────────────── */
+    .page-wrap {
+      position: relative; z-index: 1;
+      max-width: 1280px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px 16px 60px;
+    }
+
+    /* ── 상단 헤더 영역 ── */
+    .page-header { margin-bottom: 20px; }
+
+    /* 뒤로가기 버튼 */
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px;
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(251,191,36,.45);
+      border-radius: 20px; font-size: 12px; font-weight: 500;
+      cursor: pointer; margin-bottom: 16px;
+      transition: all .2s; color: #92400e;
+      font-family: 'DM Sans', sans-serif;
+      min-height: 36px;    /* 터치 영역 확보 */
+    }
+    .back-btn:hover { background: rgba(255,255,255,.95); transform: translateX(-3px); }
+
+    /* 페이지 제목 배지 + 타이틀 */
+    .page-badge {
+      display: inline-block; font-size: 10px; letter-spacing: 2px;
+      text-transform: uppercase; padding: 3px 13px; border-radius: 12px;
+      margin-bottom: 8px; font-weight: 500;
+      background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;
+    }
+    .page-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(22px, 4vw, 32px); font-weight: 600; font-style: italic;
+      background: linear-gradient(135deg, #d97706, #92400e);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .page-desc { font-size: 13px; color: #78604a; margin-top: 6px; line-height: 1.6; }
+
+    /* ────────────────────────────────
+       탭 바 — 섹션 전환 (reading.html 패턴)
+    ──────────────────────────────── */
+    .page-tabs {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .page-tab {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 18px; border-radius: 22px;
+      border: 1.5px solid rgba(251,191,36,.35);
+      background: rgba(255,255,255,.75);
+      color: #78604a; font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all .2s;
+      font-family: 'DM Sans', sans-serif;
+      min-height: 40px;    /* 터치 영역 확보 */
+    }
+    .page-tab:hover { background: rgba(255,255,255,.97); color: #1c0a00; }
+    /* 선택된 탭 — 앰버 강조 */
+    .page-tab.active {
+      background: rgba(217,119,6,.12);
+      border-color: rgba(217,119,6,.5);
+      color: #92400e; font-weight: 600;
+    }
+    /* 탭 안 카운트 배지 */
+    .tab-badge {
+      font-size: 10px; font-weight: 700; padding: 1px 6px;
+      border-radius: 8px; background: #fef3c7; color: #d97706;
+      border: 1px solid #fde68a;
+    }
+    .page-tab.active .tab-badge {
+      background: #d97706; color: white; border-color: #d97706;
+    }
+
+    /* ────────────────────────────────
+       탭 패널 — 각 섹션 콘텐츠
+    ──────────────────────────────── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ────────────────────────────────
+       섹션 카드 (유리 효과)
+    ──────────────────────────────── */
+    .section-card {
+      background: rgba(255,255,255,.86);
+      backdrop-filter: blur(16px);
+      border: 1.5px solid rgba(255,255,255,.95);
+      border-radius: 22px;
+      box-shadow: 0 4px 18px rgba(217,119,6,.08);
+      overflow: hidden;
+    }
+
+    /* ── 섹션 패널 내부 여백 ── */
+    .section-inner { padding: 16px 20px 20px; }
+
+    /* ────────────────────────────────
+       섹션 1: 영감 (영상 파이프라인)
+    ──────────────────────────────── */
+
+    /* 상태 필터 탭 */
+    .status-filter {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .status-tab {
+      padding: 6px 12px; border-radius: 14px;
+      font-size: 12px; font-weight: 500;
+      border: 1.5px solid #fcd34d;
+      background: transparent; color: #92400e;
+      cursor: pointer; transition: all .18s;
+      min-height: 34px; /* 터치 영역 */
+      font-family: 'DM Sans', sans-serif;
+    }
+    .status-tab.active {
+      background: #d97706; color: white; border-color: #d97706;
+    }
+    .status-tab:hover:not(.active) { background: #fef3c7; }
+
+    /* 태그 필터 */
+    .tag-filter {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .tag-chip {
+      padding: 4px 10px; border-radius: 10px;
+      font-size: 11px; font-weight: 500;
+      background: #fef3c7; color: #92400e;
+      border: 1px solid #fde68a; cursor: pointer;
+      transition: all .15s; min-height: 28px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .tag-chip.active { background: #fbbf24; color: white; border-color: #fbbf24; }
+    .tag-chip:hover:not(.active) { background: #fde68a; }
+
+    /* 영상 추가 버튼 */
+    .add-video-btn {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 10px 16px; margin-bottom: 14px;
+      background: rgba(217,119,6,.1); border: 1.5px dashed #fbbf24;
+      border-radius: 14px; color: #d97706;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      transition: all .2s; min-height: 44px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .add-video-btn:hover { background: rgba(217,119,6,.18); border-style: solid; }
+
+    /* 영상 카드 */
+    .video-card {
+      background: rgba(255,255,255,.7);
+      border: 1.5px solid rgba(253,230,138,.6);
+      border-radius: 16px; margin-bottom: 10px;
+      overflow: hidden; transition: all .2s;
+    }
+    .video-card:hover { border-color: #fbbf24; box-shadow: 0 4px 14px rgba(217,119,6,.1); }
+
+    /* 카드 요약 행 (항상 보임) */
+    .video-card-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; cursor: pointer; min-height: 56px;
+    }
+    /* 영상 소스 아이콘 뱃지 */
+    .video-source-badge {
+      flex-shrink: 0; width: 32px; height: 32px;
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .source-yt  { background: #fee2e2; }   /* 유튜브 — 붉은 계열 */
+    .source-ig  { background: #fce7f3; }   /* 인스타 — 분홍 계열 */
+    .source-etc { background: #f3f4f6; }   /* 기타 — 회색 */
+
+    /* 카드 제목 + 태그 */
+    .video-card-info { flex: 1; min-width: 0; }
+    .video-card-title {
+      font-size: 13px; font-weight: 500; color: #1c0a00;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .video-card-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+    .video-card-tag {
+      font-size: 10px; padding: 1px 7px; border-radius: 6px;
+      background: #fef3c7; color: #d97706; border: 1px solid #fde68a;
+    }
+
+    /* 상태 표시 아이콘 (우측) */
+    .video-status-icon { flex-shrink: 0; font-size: 16px; }
+
+    /* 카드 확장 영역 (클릭 시 열림) */
+    .video-card-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height .35s cubic-bezier(.4,0,.2,1);
+      border-top: 0px solid transparent;
+    }
+    .video-card-body.open {
+      max-height: 1200px;
+      border-top: 1px solid rgba(253,230,138,.5);
+    }
+    .video-card-inner { padding: 14px; }
+
+    /* 유튜브 iframe 컨테이너 — 16:9 비율 유지 */
+    .yt-embed {
+      position: relative; width: 100%; padding-top: 56.25%;
+      border-radius: 10px; overflow: hidden; margin-bottom: 12px;
+      background: #000;
+    }
+    .yt-embed iframe {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%; border: none;
+    }
+
+    /* 인스타 / 기타 썸네일 */
+    .thumb-wrap {
+      width: 100%; border-radius: 10px; overflow: hidden;
+      margin-bottom: 12px; background: #f9fafb;
+      border: 1px solid #e5e7eb;
+    }
+    .thumb-wrap img {
+      width: 100%; display: block;
+      border-radius: 10px;
+    }
+    .thumb-open-link {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 8px; background: rgba(253,230,138,.25);
+      border-top: 1px solid #fde68a;
+      font-size: 12px; font-weight: 500; color: #d97706;
+      text-decoration: none; cursor: pointer;
+      transition: background .15s;
+    }
+    .thumb-open-link:hover { background: rgba(253,230,138,.5); }
+
+    /* 상태 변경 버튼 3개 */
+    .status-btns {
+      display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .status-btn {
+      flex: 1; min-width: 80px; padding: 7px 10px;
+      border-radius: 10px; font-size: 12px; font-weight: 500;
+      border: 1.5px solid #fde68a; background: transparent; color: #78604a;
+      cursor: pointer; transition: all .18s; min-height: 36px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .status-btn.active-inbox    { background: #fef9c3; border-color: #fbbf24; color: #92400e; }
+    .status-btn.active-process  { background: #fff7ed; border-color: #fb923c; color: #c2410c; }
+    .status-btn.active-done     { background: #f0fdf4; border-color: #4ade80; color: #166534; }
+    .status-btn:hover { border-color: #d97706; }
+
+    /* 태그 입력 */
+    .tag-input-wrap { margin-bottom: 12px; }
+    .tag-input-label { font-size: 11px; color: #78604a; margin-bottom: 5px; }
+    .tag-input-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .tag-input {
+      flex: 1; min-width: 100px; padding: 6px 10px;
+      border: 1.5px solid #fde68a; border-radius: 10px;
+      font-size: 12px; background: rgba(255,255,255,.8);
+      font-family: 'DM Sans', sans-serif; color: #1c0a00;
+      min-height: 34px;
+    }
+    .tag-input:focus { outline: none; border-color: #d97706; }
+    .tag-add-btn {
+      padding: 6px 12px; border-radius: 10px; font-size: 12px;
+      background: #fbbf24; color: white; border: none; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; min-height: 34px;
+    }
+    .tag-add-btn:hover { background: #d97706; }
+    /* 카드 안 태그 목록 (삭제 가능) */
+    .editable-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+    .editable-tag {
+      font-size: 11px; padding: 2px 8px; border-radius: 8px;
+      background: #fef3c7; color: #d97706; border: 1px solid #fde68a;
+      display: flex; align-items: center; gap: 4px; cursor: default;
+    }
+    .tag-del {
+      font-size: 10px; cursor: pointer; color: #d97706;
+      line-height: 1; padding: 0 2px;
+    }
+    .tag-del:hover { color: #dc2626; }
+
+    /* 메모 노트 영역 */
+    .note-label { font-size: 11px; color: #78604a; margin-bottom: 5px; }
+    .video-note {
+      width: 100%; min-height: 80px;
+      border: 1.5px solid #fde68a; border-radius: 10px;
+      padding: 8px 10px; font-size: 13px; line-height: 1.6;
+      background: rgba(255,255,255,.8); color: #1c0a00;
+      font-family: 'DM Sans', sans-serif; resize: vertical;
+      margin-bottom: 10px;
+    }
+    .video-note:focus { outline: none; border-color: #d97706; }
+
+    /* 삭제 버튼 */
+    .delete-video-btn {
+      font-size: 11px; color: #9ca3af; background: none; border: none;
+      cursor: pointer; padding: 2px 0; font-family: 'DM Sans', sans-serif;
+    }
+    .delete-video-btn:hover { color: #dc2626; }
+
+    /* 영상 없음 안내 */
+    .empty-msg {
+      text-align: center; padding: 30px 16px;
+      color: #a68a60; font-size: 13px; line-height: 1.7;
+    }
+
+    /* ────────────────────────────────
+       섹션 2: 내 결과물
+    ──────────────────────────────── */
+    .add-creation-btn {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 10px 16px; margin-bottom: 14px;
+      background: rgba(217,119,6,.08); border: 1.5px dashed #fbbf24;
+      border-radius: 14px; color: #d97706;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      transition: all .2s; min-height: 44px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .add-creation-btn:hover { background: rgba(217,119,6,.15); border-style: solid; }
+
+    /* 결과물 카드 그리드 — 모바일 1열, PC(>600px) 2열 */
+    .creations-grid {
+      display: grid; grid-template-columns: 1fr; gap: 10px;
+    }
+    @media (min-width: 600px) {
+      .creations-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* 결과물 카드 */
+    .creation-card {
+      background: rgba(255,255,255,.7);
+      border: 1.5px solid rgba(253,230,138,.6); border-radius: 14px;
+      overflow: hidden; cursor: pointer; transition: all .2s;
+    }
+    .creation-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(217,119,6,.12); }
+
+    .creation-thumb {
+      width: 100%; aspect-ratio: 16/9; background: #fef3c7;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; overflow: hidden;
+    }
+    .creation-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .creation-info { padding: 10px 12px; }
+    .creation-title {
+      font-size: 13px; font-weight: 600; color: #1c0a00;
+      margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .creation-desc { font-size: 11px; color: #78604a; line-height: 1.5; }
+    .creation-actions {
+      display: flex; gap: 6px; padding: 6px 12px 10px;
+    }
+    .creation-action-btn {
+      font-size: 11px; padding: 3px 8px; border-radius: 8px;
+      border: 1px solid #fde68a; background: transparent; color: #d97706;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+    }
+    .creation-action-btn:hover { background: #fef3c7; }
+    .creation-action-btn.danger:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+
+    /* ────────────────────────────────
+       섹션 3: 작업 노트
+    ──────────────────────────────── */
+
+    /* 서식 툴바 — reading.html 패턴 재사용 */
+    .note-toolbar {
+      display: flex; gap: 4px; flex-wrap: wrap;
+      margin-bottom: 10px; padding-bottom: 10px;
+      border-bottom: 1px solid rgba(253,230,138,.5);
+    }
+    .toolbar-btn {
+      padding: 5px 9px; border-radius: 8px; font-size: 12px;
+      border: 1px solid #fde68a; background: rgba(255,255,255,.7);
+      color: #78604a; cursor: pointer; transition: all .15s;
+      font-family: 'DM Sans', sans-serif; min-height: 30px;
+    }
+    .toolbar-btn:hover { background: #fef3c7; border-color: #fbbf24; color: #92400e; }
+    .toolbar-btn.danger:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+
+    /* 노트 편집 영역 */
+    .work-note-area {
+      min-height: 160px; outline: none;
+      font-size: 14px; line-height: 1.72; color: #1c0a00;
+      caret-color: #d97706;
+    }
+    .work-note-area:empty::before {
+      content: "콘텐츠 기획, 촬영 계획, 방향성 메모 등을 자유롭게 적어두세요…";
+      color: #c4a882; pointer-events: none;
+    }
+    .work-note-area h3 { font-size: 16px; margin: 8px 0 4px; color: #92400e; }
+    .work-note-area blockquote {
+      border-left: 3px solid #fbbf24; padding-left: 12px; color: #78604a;
+      margin: 6px 0; font-style: italic;
+    }
+    .work-note-area ul, .work-note-area ol { padding-left: 20px; }
+    .work-note-area hr { border: none; border-top: 1.5px solid #fde68a; margin: 12px 0; }
+    .work-note-area img { max-width: 100%; border-radius: 8px; margin: 6px 0; }
+
+    /* 자동저장 표시 */
+    .note-save-hint {
+      font-size: 11px; color: #c4a882; text-align: right; margin-top: 8px;
+      min-height: 16px;
+    }
+
+    /* ────────────────────────────────
+       이미지 클릭 툴바 (reading.html 패턴)
+    ──────────────────────────────── */
+    #imgToolbar {
+      position: fixed; z-index: 900;
+      background: rgba(28,10,0,.88);
+      backdrop-filter: blur(12px);
+      border-radius: 12px; padding: 8px 10px;
+      display: flex; flex-direction: column; gap: 5px;
+      opacity: 0; pointer-events: none;
+      transition: opacity .2s;
+    }
+    #imgToolbar.visible { opacity: 1; pointer-events: all; }
+    .img-tb-row { display: flex; gap: 5px; }
+    .img-tb-btn {
+      padding: 5px 10px; border-radius: 7px; font-size: 11px;
+      background: rgba(255,255,255,.15); color: white; border: none;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+    }
+    .img-tb-btn:hover { background: rgba(255,255,255,.28); }
+
+    /* ────────────────────────────────
+       모달 공통 스타일
+    ──────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 800;
+      background: rgba(0,0,0,.4); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center;
+      padding: 16px;   /* 모바일에서 화면 가득 안 차게 */
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: rgba(255,255,255,.97);
+      border-radius: 22px; padding: 24px 20px;
+      width: 100%; max-width: 500px;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+    .modal-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px; color: #1c0a00; margin-bottom: 18px;
+    }
+    .modal-group { margin-bottom: 14px; }
+    .modal-label { font-size: 11px; color: #78604a; margin-bottom: 5px; font-weight: 500; }
+    .modal-input {
+      width: 100%; padding: 9px 12px;
+      border: 1.5px solid #fde68a; border-radius: 10px;
+      font-size: 13px; font-family: 'DM Sans', sans-serif; color: #1c0a00;
+      background: rgba(255,255,255,.8); min-height: 40px;
+    }
+    .modal-input:focus { outline: none; border-color: #d97706; }
+    .modal-textarea {
+      width: 100%; padding: 9px 12px; min-height: 70px;
+      border: 1.5px solid #fde68a; border-radius: 10px;
+      font-size: 13px; font-family: 'DM Sans', sans-serif;
+      color: #1c0a00; background: rgba(255,255,255,.8);
+      resize: vertical;
+    }
+    .modal-textarea:focus { outline: none; border-color: #d97706; }
+
+    /* 썸네일 업로드 영역 */
+    .thumb-upload-area {
+      width: 100%; aspect-ratio: 16/9;
+      border: 2px dashed #fbbf24; border-radius: 12px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 6px; cursor: pointer; transition: all .2s; margin-bottom: 14px;
+      background: rgba(254,243,199,.3); color: #d97706; font-size: 12px;
+      overflow: hidden;
+    }
+    .thumb-upload-area:hover { background: rgba(254,243,199,.6); }
+    .thumb-upload-area img { width: 100%; height: 100%; object-fit: cover; }
+
+    .modal-btns { display: flex; gap: 8px; margin-top: 20px; }
+    .modal-btn {
+      flex: 1; padding: 11px; border-radius: 12px;
+      font-size: 14px; font-weight: 500; cursor: pointer;
+      border: none; font-family: 'DM Sans', sans-serif; min-height: 44px;
+    }
+    .modal-btn.cancel { background: #f3f4f6; color: #6b7280; }
+    .modal-btn.cancel:hover { background: #e5e7eb; }
+    .modal-btn.confirm { background: #d97706; color: white; }
+    .modal-btn.confirm:hover { background: #b45309; }
+
+    /* URL 소스 판별 결과 안내 */
+    .url-hint {
+      font-size: 11px; color: #d97706; margin-top: 4px; min-height: 16px;
+    }
+
+    /* ────────────────────────────────
+       토스트 알림
+    ──────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(28,10,0,.92); backdrop-filter: blur(14px);
+      color: white; padding: 12px 20px; border-radius: 16px;
+      font-size: 13px; font-weight: 500; opacity: 0;
+      transition: all .3s cubic-bezier(.4,0,.2,1);
+      pointer-events: none; z-index: 999; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <!-- 배경 블롭 -->
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <!-- 이미지 클릭 툴바 (작업 노트 이미지 선택 시 뜸) -->
+  <div id="imgToolbar">
+    <div class="img-tb-row">
+      <button class="img-tb-btn" onclick="setImgSize('small')">작게</button>
+      <button class="img-tb-btn" onclick="setImgSize('medium')">중간</button>
+      <button class="img-tb-btn" onclick="setImgSize('large')">크게</button>
+      <button class="img-tb-btn" onclick="setImgSize('full')">전체</button>
+    </div>
+    <div class="img-tb-row">
+      <button class="img-tb-btn" onclick="setImgAlign('left')">◀ 왼쪽</button>
+      <button class="img-tb-btn" onclick="setImgAlign('center')">● 가운데</button>
+      <button class="img-tb-btn" onclick="setImgAlign('right')">오른쪽 ▶</button>
+    </div>
+  </div>
+
+  <!-- 영상 추가 모달 -->
+  <div class="modal-overlay" id="addVideoModal">
+    <div class="modal">
+      <div class="modal-title">📹 영상 추가</div>
+
+      <!-- URL 입력 — 유튜브/인스타/기타 자동 판별 -->
+      <div class="modal-group">
+        <div class="modal-label">영상 URL *</div>
+        <input class="modal-input" id="videoUrlInput"
+          placeholder="유튜브 또는 인스타 URL 붙여넣기"
+          oninput="detectVideoSource(this.value)" />
+        <!-- 소스 판별 결과 표시 -->
+        <div class="url-hint" id="urlHint">URL을 입력하면 자동으로 판별해요</div>
+      </div>
+
+      <!-- 제목 입력 -->
+      <div class="modal-group">
+        <div class="modal-label">제목 (선택 — 비우면 URL 표시)</div>
+        <input class="modal-input" id="videoTitleInput" placeholder="영상 제목을 입력하거나 비워두세요" />
+      </div>
+
+      <!-- 인스타/기타용 썸네일 업로드 (유튜브는 자동이므로 숨김) -->
+      <div class="modal-group" id="thumbGroup" style="display:none;">
+        <div class="modal-label">썸네일 이미지 (스크린샷 붙여넣기 또는 클릭하여 업로드)</div>
+        <!-- 클릭 또는 Ctrl+V로 이미지 추가 -->
+        <div class="thumb-upload-area" id="thumbUploadArea"
+          onclick="document.getElementById('thumbFileInput').click()">
+          <span style="font-size:24px">📸</span>
+          <span>클릭 or Ctrl+V 로 이미지 추가</span>
+        </div>
+        <input type="file" id="thumbFileInput" accept="image/*" style="display:none"
+          onchange="handleThumbFile(event)" />
+      </div>
+
+      <!-- 태그 입력 -->
+      <div class="modal-group">
+        <div class="modal-label">태그 (Enter로 추가)</div>
+        <input class="modal-input" id="videoTagInput"
+          placeholder="예: AI크리에이터, vlog, 식단, 편집팁"
+          onkeydown="addTagFromInput(event)" />
+        <div class="editable-tags" id="modalTagList"></div>
+      </div>
+
+      <div class="modal-btns">
+        <button class="modal-btn cancel" onclick="closeVideoModal()">취소</button>
+        <button class="modal-btn confirm" onclick="confirmAddVideo()">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 결과물 추가/수정 모달 -->
+  <div class="modal-overlay" id="addCreationModal">
+    <div class="modal">
+      <div class="modal-title" id="creationModalTitle">🎨 결과물 추가</div>
+
+      <!-- 썸네일 업로드 -->
+      <div class="modal-group">
+        <div class="modal-label">썸네일 이미지 (선택)</div>
+        <div class="thumb-upload-area" id="creationThumbArea"
+          onclick="document.getElementById('creationThumbInput').click()">
+          <span style="font-size:24px">🖼️</span>
+          <span>클릭 or Ctrl+V 로 이미지 추가</span>
+        </div>
+        <input type="file" id="creationThumbInput" accept="image/*" style="display:none"
+          onchange="handleCreationThumb(event)" />
+      </div>
+
+      <div class="modal-group">
+        <div class="modal-label">제목 *</div>
+        <input class="modal-input" id="creationTitleInput" placeholder="프로젝트 이름, 콘텐츠 제목 등" />
+      </div>
+
+      <div class="modal-group">
+        <div class="modal-label">설명 (선택)</div>
+        <textarea class="modal-textarea" id="creationDescInput" placeholder="간단한 설명을 적어두세요"></textarea>
+      </div>
+
+      <div class="modal-group">
+        <div class="modal-label">링크 (선택 — URL, 클릭 시 열림)</div>
+        <input class="modal-input" id="creationUrlInput" placeholder="https://..." />
+      </div>
+
+      <div class="modal-btns">
+        <button class="modal-btn cancel" onclick="closeCreationModal()">취소</button>
+        <button class="modal-btn confirm" onclick="confirmCreation()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 -->
+  <div id="toast"></div>
+
+  <div class="page-wrap">
+
+    <!-- 상단 헤더 -->
+    <div class="page-header">
+      <button class="back-btn" onclick="location.href='empire.html'">← Empire</button>
+      <div>
+        <div class="page-badge">🏰 Empire · 크리에이터</div>
+        <div class="page-title">Creator</div>
+        <div class="page-desc">영감 수집부터 콘텐츠 제작까지 — 크리에이터의 모든 과정을 기록해요</div>
+      </div>
+    </div>
+
+    <!-- 탭 바 — 3개 탭으로 섹션 전환 -->
+    <div class="page-tabs">
+      <!-- 영감 탭: 미처리 개수 배지 표시 -->
+      <button class="page-tab active" id="tabBtn-video" onclick="switchTab('video')">
+        📥 영감
+        <span class="tab-badge" id="inboxCount">0</span>
+      </button>
+      <!-- 결과물 탭: 결과물 개수 배지 -->
+      <button class="page-tab" id="tabBtn-creation" onclick="switchTab('creation')">
+        🎨 내 결과물
+        <span class="tab-badge" id="creationCount">0</span>
+      </button>
+      <!-- 작업 노트 탭 -->
+      <button class="page-tab" id="tabBtn-note" onclick="switchTab('note')">
+        ✍️ 작업 노트
+      </button>
+    </div>
+
+    <!-- ────── 탭 패널 1: 영감 ────── -->
+    <div class="tab-panel active" id="panel-video">
+      <div class="section-card">
+        <div class="section-inner">
+
+          <!-- 상태 필터 탭 -->
+          <div class="status-filter">
+            <button class="status-tab active" onclick="setStatusFilter('all', this)">전체</button>
+            <button class="status-tab" onclick="setStatusFilter('inbox', this)">📥 미처리</button>
+            <button class="status-tab" onclick="setStatusFilter('processing', this)">🔄 소화중</button>
+            <button class="status-tab" onclick="setStatusFilter('done', this)">✅ 완료</button>
+          </div>
+
+          <!-- 태그 필터 -->
+          <div class="tag-filter" id="tagFilterWrap"></div>
+
+          <!-- 영상 추가 버튼 -->
+          <button class="add-video-btn" onclick="openVideoModal()">
+            ＋ 영상/릴스 추가
+          </button>
+
+          <!-- 영상 카드 목록 -->
+          <div id="videoList"></div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ────── 탭 패널 2: 내 결과물 ────── -->
+    <div class="tab-panel" id="panel-creation">
+      <div class="section-card">
+        <div class="section-inner">
+
+          <button class="add-creation-btn" onclick="openCreationModal()">
+            ＋ 결과물 추가
+          </button>
+
+          <div class="creations-grid" id="creationGrid"></div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ────── 탭 패널 3: 작업 노트 ────── -->
+    <div class="tab-panel" id="panel-note">
+      <div class="section-card">
+        <div class="section-inner">
+
+          <!-- 서식 툴바 -->
+          <div class="note-toolbar">
+            <button class="toolbar-btn" onclick="noteFmt('bold')"><b>B</b></button>
+            <button class="toolbar-btn" onclick="noteFmt('italic')"><i>I</i></button>
+            <button class="toolbar-btn" onclick="noteFmt('underline')"><u>U</u></button>
+            <button class="toolbar-btn" onclick="noteFmt('insertUnorderedList')">• 목록</button>
+            <button class="toolbar-btn" onclick="noteFmt('insertOrderedList')">1. 목록</button>
+            <button class="toolbar-btn" onclick="noteFmt('formatBlock', 'h3')">제목</button>
+            <button class="toolbar-btn" onclick="noteFmt('formatBlock', 'blockquote')">인용</button>
+            <button class="toolbar-btn" onclick="insertNoteDivider()">── 구분선</button>
+            <button class="toolbar-btn danger" onclick="clearNote()">초기화</button>
+          </div>
+
+          <!-- contenteditable 노트 편집 영역 -->
+          <div class="work-note-area" id="workNoteArea" contenteditable="true"></div>
+
+          <!-- 자동저장 안내 -->
+          <div class="note-save-hint" id="noteSaveHint"></div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       Firebase 초기화 — 모든 데이터를 Firestore에도 동시 저장
+    ============================================================ */
+    firebase.initializeApp({
+      apiKey: "AIzaSyBC_aeuuKXoJIodrmfeQ52bvWpzcZMrtPM",
+      authDomain: "mind-os-b23a5.firebaseapp.com",
+      projectId: "mind-os-b23a5",
+      storageBucket: "mind-os-b23a5.firebasestorage.app",
+      messagingSenderId: "88544003760",
+      appId: "1:88544003760:web:58af8d47183d2e259d9d75"
+    });
+    const db = firebase.firestore();
+
+    /* ============================================================
+       데이터 구조
+       videos   : 영상 파이프라인 배열
+       creations: 내 결과물 배열
+       workNotes: 작업 노트 HTML 문자열
+       tagList  : 전체 태그 목록 (자동 수집)
+    ============================================================ */
+    let data = {
+      videos: [],
+      creations: [],
+      workNotes: '',
+      tagList: []
+    };
+
+    /* 현재 적용 중인 필터 */
+    let curStatusFilter = 'all';  // 'all' | 'inbox' | 'processing' | 'done'
+    let curTagFilter    = '';     // '' = 전체, 아니면 태그 문자열
+
+    /* 결과물 모달 편집 모드 (수정할 id) */
+    let editingCreationId = null;
+
+    /* 작업 노트 자동저장 타이머 */
+    let noteSaveTimer = null;
+
+    /* 이미지 클릭 툴바 — 선택된 이미지 참조 */
+    let selectedImg = null;
+
+    /* 모달에서 임시 보관 중인 썸네일 base64 */
+    let pendingVideoThumb    = null;
+    let pendingCreationThumb = null;
+
+    /* 모달에서 임시 보관 중인 태그 배열 */
+    let modalTags = [];
+
+    /* ============================================================
+       데이터 불러오기 — localStorage 1순위, 없으면 Firestore
+    ============================================================ */
+    async function loadData() {
+      /* localStorage에서 먼저 시도 */
+      const local = localStorage.getItem('mindos_creator');
+      if (local) {
+        try {
+          data = JSON.parse(local);
+          return;
+        } catch(e) { /* JSON 파싱 실패시 Firestore로 폴백 */ }
+      }
+      /* localStorage 없으면 Firestore (처음 접속하는 기기) */
+      try {
+        const snap = await db.collection('mindos').doc('creator').get();
+        if (snap.exists) data = snap.data();
+      } catch(e) { console.error('Firestore 불러오기 실패:', e); }
+    }
+
+    /* ============================================================
+       데이터 저장 — localStorage + Firestore 동시
+    ============================================================ */
+    function saveData() {
+      /* localStorage에 즉시 저장 */
+      localStorage.setItem('mindos_creator', JSON.stringify(data));
+      /* Firestore에도 저장 (실패해도 localStorage는 유지되므로 무시) */
+      db.collection('mindos').doc('creator').set(data).catch(e => console.error('Firestore 저장 실패:', e));
+    }
+
+    /* ============================================================
+       이미지 압축 함수 — CLAUDE.md 표준 패턴
+       캔버스에 이미지를 다시 그린 뒤 JPEG로 압축
+    ============================================================ */
+    function compressImage(dataUrl, maxWidth, quality, callback) {
+      const img = new Image();
+      img.onload = function() {
+        let w = img.width, h = img.height;
+        /* 가로 크기가 maxWidth 초과하면 비율 유지하며 축소 */
+        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        callback(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = dataUrl;
+    }
+
+    /* ============================================================
+       유튜브 URL → embed URL 변환
+       지원 형식:
+         youtube.com/watch?v=XXX
+         youtu.be/XXX
+         youtube.com/shorts/XXX
+         youtube.com/embed/XXX (이미 embed 형식)
+    ============================================================ */
+    function toYoutubeEmbed(url) {
+      /* 이미 embed 형식이면 그대로 반환 */
+      if (url.includes('youtube.com/embed/')) return url;
+      /* youtu.be/XXX 형식 */
+      let m = url.match(/youtu\.be\/([^?&]+)/);
+      if (m) return `https://www.youtube.com/embed/${m[1]}`;
+      /* youtube.com/shorts/XXX 형식 */
+      m = url.match(/youtube\.com\/shorts\/([^?&]+)/);
+      if (m) return `https://www.youtube.com/embed/${m[1]}`;
+      /* youtube.com/watch?v=XXX 형식 */
+      m = url.match(/[?&]v=([^&]+)/);
+      if (m) return `https://www.youtube.com/embed/${m[1]}`;
+      return null;  /* 변환 실패 */
+    }
+
+    /* ============================================================
+       URL 소스 자동 판별 — 유튜브 / 인스타 / 기타
+    ============================================================ */
+    function detectSource(url) {
+      if (!url) return 'etc';
+      if (/youtu(be\.com|\.be)/i.test(url)) return 'youtube';
+      if (/instagram\.com/i.test(url)) return 'instagram';
+      return 'etc';
+    }
+
+    /* URL 입력 시 실시간으로 힌트 + 썸네일 업로드 영역 표시/숨김 */
+    function detectVideoSource(url) {
+      const hint = document.getElementById('urlHint');
+      const thumbGroup = document.getElementById('thumbGroup');
+      const src = detectSource(url.trim());
+      if (src === 'youtube') {
+        const embed = toYoutubeEmbed(url.trim());
+        hint.textContent = embed ? '✅ 유튜브 영상 — 자동으로 임베드 돼요' : '⚠️ 유튜브 URL인데 영상 ID를 찾지 못했어요';
+        hint.style.color = embed ? '#16a34a' : '#dc2626';
+        thumbGroup.style.display = 'none';   /* 유튜브는 썸네일 업로드 불필요 */
+      } else if (src === 'instagram') {
+        hint.textContent = '📸 인스타그램 릴스 — 아래에 스크린샷을 추가하면 더 보기 좋아요';
+        hint.style.color = '#d97706';
+        thumbGroup.style.display = 'block';
+      } else if (url.length > 5) {
+        hint.textContent = '🔗 기타 링크 — 썸네일 이미지를 추가할 수 있어요';
+        hint.style.color = '#78604a';
+        thumbGroup.style.display = 'block';
+      } else {
+        hint.textContent = 'URL을 입력하면 자동으로 판별해요';
+        hint.style.color = '#d97706';
+        thumbGroup.style.display = 'none';
+      }
+    }
+
+    /* ============================================================
+       영상 추가 모달 열기/닫기
+    ============================================================ */
+    function openVideoModal() {
+      /* 입력 초기화 */
+      document.getElementById('videoUrlInput').value = '';
+      document.getElementById('videoTitleInput').value = '';
+      document.getElementById('videoTagInput').value = '';
+      document.getElementById('urlHint').textContent = 'URL을 입력하면 자동으로 판별해요';
+      document.getElementById('urlHint').style.color = '#d97706';
+      document.getElementById('thumbGroup').style.display = 'none';
+      document.getElementById('modalTagList').innerHTML = '';
+      document.getElementById('thumbUploadArea').innerHTML =
+        '<span style="font-size:24px">📸</span><span>클릭 or Ctrl+V 로 이미지 추가</span>';
+      pendingVideoThumb = null;
+      modalTags = [];
+      document.getElementById('addVideoModal').classList.add('open');
+    }
+    function closeVideoModal() {
+      document.getElementById('addVideoModal').classList.remove('open');
+    }
+
+    /* 썸네일 파일 선택 핸들러 — 압축 후 미리보기 */
+    function handleThumbFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        compressImage(ev.target.result, 1200, 0.8, compressed => {
+          pendingVideoThumb = compressed;
+          showThumbPreview('thumbUploadArea', compressed);
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    /* 썸네일 미리보기 표시 */
+    function showThumbPreview(areaId, src) {
+      const area = document.getElementById(areaId);
+      area.innerHTML = `<img src="${src}" alt="썸네일 미리보기">`;
+    }
+
+    /* ============================================================
+       모달 태그 입력 — Enter 키로 추가
+    ============================================================ */
+    function addTagFromInput(e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const input = document.getElementById('videoTagInput');
+      const tag = input.value.trim();
+      if (!tag || modalTags.includes(tag)) { input.value = ''; return; }
+      modalTags.push(tag);
+      input.value = '';
+      renderModalTags();
+    }
+
+    function renderModalTags() {
+      const wrap = document.getElementById('modalTagList');
+      wrap.innerHTML = modalTags.map((t, i) =>
+        `<span class="editable-tag">${t}
+          <span class="tag-del" onclick="removeModalTag(${i})">✕</span>
+        </span>`
+      ).join('');
+    }
+
+    function removeModalTag(i) {
+      modalTags.splice(i, 1);
+      renderModalTags();
+    }
+
+    /* ============================================================
+       영상 추가 확정 — 데이터에 추가 후 저장
+    ============================================================ */
+    function confirmAddVideo() {
+      const url   = document.getElementById('videoUrlInput').value.trim();
+      const title = document.getElementById('videoTitleInput').value.trim();
+      if (!url) { showToast('URL을 입력해주세요'); return; }
+
+      const source = detectSource(url);
+      let embedUrl = null;
+
+      /* 유튜브면 embed URL 생성, 실패하면 중단 */
+      if (source === 'youtube') {
+        embedUrl = toYoutubeEmbed(url);
+        if (!embedUrl) { showToast('유튜브 영상 ID를 찾지 못했어요'); return; }
+      }
+
+      /* 새 영상 객체 생성 */
+      const video = {
+        id: 'v_' + Date.now(),
+        url,
+        source,                              /* 'youtube' | 'instagram' | 'etc' */
+        embedUrl,                            /* youtube 전용 */
+        thumbnail: pendingVideoThumb || null, /* instagram/etc 전용 */
+        title: title || url,
+        status: 'inbox',                     /* 처음엔 미처리 */
+        tags: [...modalTags],
+        note: '',
+        createdAt: Date.now()
+      };
+
+      data.videos.unshift(video);  /* 최신이 위에 오도록 앞에 추가 */
+      updateTagList();              /* 전체 태그 목록 업데이트 */
+      saveData();
+      closeVideoModal();
+      renderVideoList();
+      renderTagFilter();
+      updateCounts();
+      showToast('영상이 추가됐어요 📹');
+    }
+
+    /* ============================================================
+       영상 목록 렌더링
+    ============================================================ */
+    function renderVideoList() {
+      const wrap = document.getElementById('videoList');
+      /* 현재 필터에 맞는 영상만 추출 */
+      let videos = data.videos.filter(v => {
+        const statusOk = curStatusFilter === 'all' || v.status === curStatusFilter;
+        const tagOk = !curTagFilter || (v.tags && v.tags.includes(curTagFilter));
+        return statusOk && tagOk;
+      });
+
+      if (videos.length === 0) {
+        wrap.innerHTML = `<div class="empty-msg">
+          ${curStatusFilter === 'all' && !curTagFilter
+            ? '아직 영상이 없어요<br>위의 버튼으로 추가해보세요 🎬'
+            : '이 필터에 해당하는 영상이 없어요'}
+        </div>`;
+        return;
+      }
+
+      wrap.innerHTML = videos.map(v => renderVideoCard(v)).join('');
+    }
+
+    /* 영상 카드 HTML 생성 */
+    function renderVideoCard(v) {
+      /* 소스별 아이콘/배경색 */
+      const sourceIcon  = v.source === 'youtube' ? '▶' : v.source === 'instagram' ? '📸' : '🔗';
+      const sourceCls   = v.source === 'youtube' ? 'source-yt' : v.source === 'instagram' ? 'source-ig' : 'source-etc';
+      /* 상태별 이모지 */
+      const statusIcon  = v.status === 'inbox' ? '⚪' : v.status === 'processing' ? '🟡' : '🟢';
+      /* 태그 HTML */
+      const tagsHtml    = (v.tags || []).map(t => `<span class="video-card-tag">${t}</span>`).join('');
+      /* 상태 버튼 active 클래스 */
+      const aCls = s => v.status === s ? `active-${s === 'inbox' ? 'inbox' : s === 'processing' ? 'process' : 'done'}` : '';
+
+      /* 미디어 영역 — 소스에 따라 다르게 렌더링 */
+      let mediaHtml = '';
+      if (v.source === 'youtube' && v.embedUrl) {
+        mediaHtml = `
+          <div class="yt-embed">
+            <iframe src="${v.embedUrl}" allowfullscreen loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+            </iframe>
+          </div>`;
+      } else if (v.thumbnail) {
+        mediaHtml = `
+          <div class="thumb-wrap">
+            <img src="${v.thumbnail}" alt="썸네일" style="cursor:pointer" onclick="window.open('${v.url}','_blank')">
+            <a class="thumb-open-link" href="${v.url}" target="_blank">🔗 원본 열기</a>
+          </div>`;
+      } else {
+        mediaHtml = `
+          <div class="thumb-wrap">
+            <a class="thumb-open-link" href="${v.url}" target="_blank" style="padding:16px">🔗 원본 열기 — ${v.url}</a>
+          </div>`;
+      }
+
+      /* 편집 가능한 태그 목록 */
+      const editableTagsHtml = (v.tags || []).map((t, i) =>
+        `<span class="editable-tag">${t}<span class="tag-del" onclick="removeVideoTag('${v.id}', ${i}); event.stopPropagation()">✕</span></span>`
+      ).join('');
+
+      return `
+        <div class="video-card" id="vc_${v.id}">
+          <!-- 카드 요약 헤더 (항상 보임, 클릭하면 확장) -->
+          <div class="video-card-header" onclick="toggleVideoCard('${v.id}')">
+            <div class="video-source-badge ${sourceCls}">${sourceIcon}</div>
+            <div class="video-card-info">
+              <div class="video-card-title">${v.title}</div>
+              <div class="video-card-tags">${tagsHtml}</div>
+            </div>
+            <span class="video-status-icon">${statusIcon}</span>
+          </div>
+
+          <!-- 확장 영역 (클릭 시 열림) -->
+          <div class="video-card-body" id="vcb_${v.id}">
+            <div class="video-card-inner">
+
+              ${mediaHtml}
+
+              <!-- 상태 변경 버튼 -->
+              <div class="status-btns">
+                <button class="status-btn ${aCls('inbox')}"     onclick="setVideoStatus('${v.id}', 'inbox')">📥 미처리</button>
+                <button class="status-btn ${aCls('processing')}" onclick="setVideoStatus('${v.id}', 'processing')">🔄 소화중</button>
+                <button class="status-btn ${aCls('done')}"      onclick="setVideoStatus('${v.id}', 'done')">✅ 완료</button>
+              </div>
+
+              <!-- 태그 입력 -->
+              <div class="tag-input-wrap">
+                <div class="tag-input-label">태그</div>
+                <div class="tag-input-row">
+                  <input class="tag-input" id="tagInput_${v.id}"
+                    placeholder="태그 입력 후 Enter"
+                    onkeydown="addVideoTag('${v.id}', event)" />
+                </div>
+                <div class="editable-tags">${editableTagsHtml}</div>
+              </div>
+
+              <!-- 메모 노트 -->
+              <div class="note-label">내 해석 메모</div>
+              <textarea class="video-note" id="vnote_${v.id}"
+                placeholder="이 영상에서 뭘 얻었는지 적어두세요…"
+                onblur="saveVideoNote('${v.id}')">${v.note || ''}</textarea>
+
+              <!-- 삭제 -->
+              <button class="delete-video-btn" onclick="deleteVideo('${v.id}')">🗑️ 삭제</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    /* ============================================================
+       영상 카드 확장/축소 토글
+    ============================================================ */
+    function toggleVideoCard(id) {
+      const body = document.getElementById('vcb_' + id);
+      body.classList.toggle('open');
+    }
+
+    /* ============================================================
+       영상 상태 변경
+    ============================================================ */
+    function setVideoStatus(id, status) {
+      const v = data.videos.find(v => v.id === id);
+      if (!v) return;
+      v.status = status;
+      saveData();
+      renderVideoList();  /* 다시 렌더링해서 상태 반영 */
+      updateCounts();
+      showToast(status === 'inbox' ? '📥 미처리로 변경' : status === 'processing' ? '🔄 소화중으로 변경' : '✅ 완료!');
+    }
+
+    /* ============================================================
+       영상 태그 추가 / 삭제
+    ============================================================ */
+    function addVideoTag(id, e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const input = document.getElementById('tagInput_' + id);
+      const tag = input.value.trim();
+      if (!tag) return;
+      const v = data.videos.find(v => v.id === id);
+      if (!v) return;
+      if (!v.tags) v.tags = [];
+      if (!v.tags.includes(tag)) {
+        v.tags.push(tag);
+        updateTagList();
+        saveData();
+        renderVideoList();
+        renderTagFilter();
+        /* 확장 상태 유지 — 렌더 후 다시 열기 */
+        setTimeout(() => document.getElementById('vcb_' + id)?.classList.add('open'), 0);
+      }
+      input.value = '';
+    }
+
+    function removeVideoTag(id, idx) {
+      const v = data.videos.find(v => v.id === id);
+      if (!v || !v.tags) return;
+      v.tags.splice(idx, 1);
+      updateTagList();
+      saveData();
+      renderVideoList();
+      renderTagFilter();
+      setTimeout(() => document.getElementById('vcb_' + id)?.classList.add('open'), 0);
+    }
+
+    /* ============================================================
+       영상 메모 저장 (textarea blur 시)
+    ============================================================ */
+    function saveVideoNote(id) {
+      const v = data.videos.find(v => v.id === id);
+      if (!v) return;
+      const val = document.getElementById('vnote_' + id)?.value;
+      if (val !== undefined) {
+        v.note = val;
+        saveData();
+      }
+    }
+
+    /* ============================================================
+       영상 삭제
+    ============================================================ */
+    function deleteVideo(id) {
+      if (!confirm('이 영상을 삭제할까요?')) return;
+      data.videos = data.videos.filter(v => v.id !== id);
+      updateTagList();
+      saveData();
+      renderVideoList();
+      renderTagFilter();
+      updateCounts();
+      showToast('삭제됐어요');
+    }
+
+    /* ============================================================
+       상태 필터 변경
+    ============================================================ */
+    function setStatusFilter(status, el) {
+      curStatusFilter = status;
+      /* 모든 탭 active 제거 후 현재 탭에 active 추가 */
+      document.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      renderVideoList();
+    }
+
+    /* ============================================================
+       태그 필터 렌더링 + 태그 클릭 처리
+    ============================================================ */
+    function renderTagFilter() {
+      const wrap = document.getElementById('tagFilterWrap');
+      if (!data.tagList || data.tagList.length === 0) {
+        wrap.innerHTML = '';
+        return;
+      }
+      wrap.innerHTML = ['전체', ...data.tagList].map(t =>
+        `<span class="tag-chip ${(!curTagFilter && t === '전체') || curTagFilter === t ? 'active' : ''}"
+          onclick="setTagFilter('${t}')">#${t}</span>`
+      ).join('');
+    }
+
+    function setTagFilter(tag) {
+      curTagFilter = tag === '전체' ? '' : tag;
+      renderTagFilter();
+      renderVideoList();
+    }
+
+    /* ============================================================
+       전체 태그 목록 자동 수집 (모든 영상의 태그 합치기)
+    ============================================================ */
+    function updateTagList() {
+      const all = new Set();
+      data.videos.forEach(v => (v.tags || []).forEach(t => all.add(t)));
+      data.tagList = [...all];
+    }
+
+    /* ============================================================
+       카운트 배지 업데이트
+    ============================================================ */
+    function updateCounts() {
+      /* 미처리 개수 — 영감 탭 배지 */
+      const inboxN = data.videos.filter(v => v.status === 'inbox').length;
+      document.getElementById('inboxCount').textContent = inboxN;
+      /* 결과물 개수 — 결과물 탭 배지 */
+      document.getElementById('creationCount').textContent = data.creations.length;
+    }
+
+    /* ============================================================
+       탭 전환 — reading.html의 카테고리 탭과 동일한 방식
+       panelName: 'video' | 'creation' | 'note'
+    ============================================================ */
+    function switchTab(panelName) {
+      /* 모든 탭 버튼 active 제거 */
+      document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
+      /* 모든 탭 패널 숨기기 */
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      /* 선택한 탭 버튼 + 패널 활성화 */
+      document.getElementById('tabBtn-' + panelName).classList.add('active');
+      document.getElementById('panel-' + panelName).classList.add('active');
+    }
+
+    /* ============================================================
+       결과물 모달 열기/닫기
+    ============================================================ */
+    function openCreationModal(editId) {
+      editingCreationId = editId || null;
+      const title = document.getElementById('creationModalTitle');
+      /* 수정 모드면 기존 데이터 채우기 */
+      if (editId) {
+        const c = data.creations.find(c => c.id === editId);
+        if (!c) return;
+        title.textContent = '🎨 결과물 수정';
+        document.getElementById('creationTitleInput').value = c.title || '';
+        document.getElementById('creationDescInput').value  = c.description || '';
+        document.getElementById('creationUrlInput').value   = c.url || '';
+        pendingCreationThumb = c.image || null;
+        if (c.image) showThumbPreview('creationThumbArea', c.image);
+        else {
+          document.getElementById('creationThumbArea').innerHTML =
+            '<span style="font-size:24px">🖼️</span><span>클릭 or Ctrl+V 로 이미지 추가</span>';
+        }
+      } else {
+        title.textContent = '🎨 결과물 추가';
+        document.getElementById('creationTitleInput').value = '';
+        document.getElementById('creationDescInput').value  = '';
+        document.getElementById('creationUrlInput').value   = '';
+        document.getElementById('creationThumbArea').innerHTML =
+          '<span style="font-size:24px">🖼️</span><span>클릭 or Ctrl+V 로 이미지 추가</span>';
+        pendingCreationThumb = null;
+      }
+      document.getElementById('addCreationModal').classList.add('open');
+    }
+    function closeCreationModal() {
+      document.getElementById('addCreationModal').classList.remove('open');
+    }
+
+    /* 결과물 썸네일 파일 선택 */
+    function handleCreationThumb(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        compressImage(ev.target.result, 1000, 0.78, compressed => {
+          pendingCreationThumb = compressed;
+          showThumbPreview('creationThumbArea', compressed);
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    /* ============================================================
+       결과물 추가/수정 확정
+    ============================================================ */
+    function confirmCreation() {
+      const t = document.getElementById('creationTitleInput').value.trim();
+      if (!t) { showToast('제목을 입력해주세요'); return; }
+
+      if (editingCreationId) {
+        /* 수정 */
+        const c = data.creations.find(c => c.id === editingCreationId);
+        if (c) {
+          c.title       = t;
+          c.description = document.getElementById('creationDescInput').value.trim();
+          c.url         = document.getElementById('creationUrlInput').value.trim();
+          if (pendingCreationThumb) c.image = pendingCreationThumb;
+        }
+      } else {
+        /* 새로 추가 */
+        data.creations.unshift({
+          id:          'c_' + Date.now(),
+          title:       t,
+          description: document.getElementById('creationDescInput').value.trim(),
+          url:         document.getElementById('creationUrlInput').value.trim(),
+          image:       pendingCreationThumb || null,
+          createdAt:   Date.now()
+        });
+      }
+
+      saveData();
+      closeCreationModal();
+      renderCreationGrid();
+      updateCounts();
+      showToast(editingCreationId ? '수정됐어요 ✏️' : '결과물이 추가됐어요 🎨');
+    }
+
+    /* ============================================================
+       결과물 그리드 렌더링
+    ============================================================ */
+    function renderCreationGrid() {
+      const grid = document.getElementById('creationGrid');
+      if (data.creations.length === 0) {
+        grid.innerHTML = `<div class="empty-msg" style="grid-column:1/-1">
+          아직 결과물이 없어요<br>업로드한 영상, 콘텐츠를 기록해보세요 🎬</div>`;
+        return;
+      }
+
+      grid.innerHTML = data.creations.map(c => `
+        <div class="creation-card">
+          <!-- 썸네일 영역 — 이미지 있으면 표시, 없으면 이모지 -->
+          <div class="creation-thumb">
+            ${c.image
+              ? `<img src="${c.image}" alt="썸네일">`
+              : '<span>🚀</span>'}
+          </div>
+          <!-- 정보 영역 -->
+          <div class="creation-info">
+            <div class="creation-title">${c.title}</div>
+            ${c.description
+              ? `<div class="creation-desc">${c.description}</div>`
+              : ''}
+          </div>
+          <!-- 액션 버튼 -->
+          <div class="creation-actions">
+            ${c.url
+              ? `<button class="creation-action-btn" onclick="window.open('${c.url}','_blank')">🔗 열기</button>`
+              : ''}
+            <button class="creation-action-btn" onclick="openCreationModal('${c.id}')">✏️ 수정</button>
+            <button class="creation-action-btn danger" onclick="deleteCreation('${c.id}')">🗑️ 삭제</button>
+          </div>
+        </div>`
+      ).join('');
+    }
+
+    /* ============================================================
+       결과물 삭제
+    ============================================================ */
+    function deleteCreation(id) {
+      if (!confirm('이 결과물을 삭제할까요?')) return;
+      data.creations = data.creations.filter(c => c.id !== id);
+      saveData();
+      renderCreationGrid();
+      updateCounts();
+      showToast('삭제됐어요');
+    }
+
+    /* ============================================================
+       작업 노트 — 서식 적용 (reading.html 패턴 재사용)
+    ============================================================ */
+    function noteFmt(cmd, val) {
+      document.getElementById('workNoteArea').focus();
+      document.execCommand(cmd, false, val || null);
+    }
+
+    /* 구분선 삽입 */
+    function insertNoteDivider() {
+      document.getElementById('workNoteArea').focus();
+      document.execCommand('insertHTML', false, '<hr>');
+    }
+
+    /* 노트 초기화 */
+    function clearNote() {
+      if (!confirm('노트를 초기화할까요? 되돌릴 수 없어요.')) return;
+      document.getElementById('workNoteArea').innerHTML = '';
+      saveNote();
+    }
+
+    /* 작업 노트 저장 (debounce — 500ms 후 저장) */
+    function saveNote() {
+      const hint = document.getElementById('noteSaveHint');
+      hint.textContent = '저장 중…';
+      data.workNotes = document.getElementById('workNoteArea').innerHTML;
+      saveData();
+      hint.textContent = '저장됨 ✓';
+      setTimeout(() => { hint.textContent = ''; }, 2000);
+    }
+
+    /* ============================================================
+       작업 노트 — 이미지 Ctrl+V 붙여넣기 핸들러 (CLAUDE.md 표준)
+    ============================================================ */
+    document.getElementById('workNoteArea').addEventListener('paste', function(e) {
+      for (const item of e.clipboardData.items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const reader = new FileReader();
+          reader.onload = ev => {
+            /* 이미지 압축 후 노트 영역에 삽입 */
+            compressImage(ev.target.result, 1200, 0.8, compressed => {
+              document.execCommand('insertHTML', false,
+                `<img src="${compressed}" style="max-width:100%;border-radius:8px;margin:6px 0">`
+              );
+              saveNote();
+            });
+          };
+          reader.readAsDataURL(item.getAsFile());
+        }
+      }
+    });
+
+    /* 노트 타이핑 시 debounce 자동저장 */
+    document.getElementById('workNoteArea').addEventListener('input', function() {
+      clearTimeout(noteSaveTimer);
+      noteSaveTimer = setTimeout(saveNote, 500);
+    });
+
+    /* ============================================================
+       이미지 클릭 툴바 (CLAUDE.md 표준 패턴)
+    ============================================================ */
+    document.getElementById('workNoteArea').addEventListener('click', function(e) {
+      if (e.target.tagName === 'IMG') {
+        selectedImg = e.target;
+        showImgToolbar(e.target);
+      } else {
+        hideImgToolbar();
+      }
+    });
+
+    function showImgToolbar(img) {
+      const toolbar = document.getElementById('imgToolbar');
+      const rect = img.getBoundingClientRect();
+      /* 이미지 위에 공간이 있으면 위에, 없으면 아래에 표시 */
+      const topPos = rect.top > 80 ? rect.top - 72 : rect.bottom + 8;
+      toolbar.style.top  = topPos + 'px';
+      toolbar.style.left = Math.max(8, rect.left) + 'px';
+      toolbar.classList.add('visible');
+    }
+    function hideImgToolbar() {
+      document.getElementById('imgToolbar').classList.remove('visible');
+      selectedImg = null;
+    }
+
+    /* 이미지 크기 조절 */
+    function setImgSize(size) {
+      if (!selectedImg) return;
+      const sizes = { small:'200px', medium:'400px', large:'600px', full:'100%' };
+      selectedImg.style.maxWidth = sizes[size];
+      saveNote();
+    }
+
+    /* 이미지 정렬 */
+    function setImgAlign(align) {
+      if (!selectedImg) return;
+      const aligns = {
+        left:   { display:'block', marginLeft:'0',    marginRight:'auto' },
+        center: { display:'block', marginLeft:'auto', marginRight:'auto' },
+        right:  { display:'block', marginLeft:'auto', marginRight:'0'    }
+      };
+      Object.assign(selectedImg.style, aligns[align]);
+      saveNote();
+    }
+
+    /* 툴바 바깥 클릭 시 숨기기 */
+    document.addEventListener('click', function(e) {
+      const toolbar = document.getElementById('imgToolbar');
+      const noteArea = document.getElementById('workNoteArea');
+      if (!toolbar.contains(e.target) && !noteArea.contains(e.target)) {
+        hideImgToolbar();
+      }
+    });
+
+    /* ============================================================
+       모달 썸네일 영역에도 Ctrl+V 붙여넣기 지원
+       (영상 추가 모달, 결과물 추가 모달 공통)
+    ============================================================ */
+    document.addEventListener('paste', function(e) {
+      /* 영상 추가 모달이 열려있고, 썸네일 업로드 그룹이 보이는 경우 */
+      const videoModalOpen   = document.getElementById('addVideoModal').classList.contains('open');
+      const creationModalOpen = document.getElementById('addCreationModal').classList.contains('open');
+
+      if (!videoModalOpen && !creationModalOpen) return;
+      /* 텍스트 입력창에서의 붙여넣기는 무시 */
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      for (const item of e.clipboardData.items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const reader = new FileReader();
+          reader.onload = ev => {
+            compressImage(ev.target.result, 1000, 0.8, compressed => {
+              if (videoModalOpen) {
+                pendingVideoThumb = compressed;
+                showThumbPreview('thumbUploadArea', compressed);
+              } else {
+                pendingCreationThumb = compressed;
+                showThumbPreview('creationThumbArea', compressed);
+              }
+            });
+          };
+          reader.readAsDataURL(item.getAsFile());
+        }
+      }
+    });
+
+    /* ============================================================
+       토스트 알림
+    ============================================================ */
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    /* ============================================================
+       페이지 초기화 — 데이터 로드 후 UI 그리기
+    ============================================================ */
+    async function init() {
+      await loadData();
+      renderVideoList();
+      renderTagFilter();
+      renderCreationGrid();
+      updateCounts();
+      /* 저장된 노트 복원 */
+      if (data.workNotes) {
+        document.getElementById('workNoteArea').innerHTML = data.workNotes;
+      }
+    }
+
+    /* 페이지 로드 시 init 실행 */
+    init();
+  </script>
+
+</body>
+</html>
