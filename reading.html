@@ -486,6 +486,120 @@
     }
     #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
+    /* ══════════════════════════════
+       상단 뷰 모드 탭 — 내 책장 / 읽고 싶은 책
+    ══════════════════════════════ */
+    /* 헤더 바로 아래에 위치하는 2개짜리 토글 탭 */
+    .view-tabs {
+      flex-shrink: 0;
+      display: flex;
+      border-bottom: 1px solid rgba(167,139,250,.15);
+      background: rgba(255,255,255,.75);
+      backdrop-filter: blur(12px);
+    }
+    /* 각 탭 버튼 — 절반씩 차지 */
+    .view-tab {
+      flex: 1;
+      padding: 12px 0;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 500;
+      color: #9ca3af;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    /* 활성 탭 — 앰버 골드 강조 */
+    .view-tab.active {
+      color: #b45309;
+      border-bottom-color: #f59e0b;
+      font-weight: 600;
+    }
+
+    /* ══════════════════════════════
+       위시리스트 영역
+    ══════════════════════════════ */
+    /* 기본적으로 숨겨져 있다가 탭 전환 시 표시 */
+    #wishlistArea {
+      flex: 1;
+      display: none; /* 처음엔 숨김 */
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 24px 28px;
+      gap: 10px;
+    }
+    #wishlistArea.active { display: flex; }
+    #wishlistArea::-webkit-scrollbar { width: 6px; }
+    #wishlistArea::-webkit-scrollbar-thumb { background: rgba(167,139,250,.25); border-radius: 3px; }
+
+    /* 위시리스트 개별 아이템 카드 — 가로 배치 */
+    .wish-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      background: rgba(255,255,255,.82);
+      border: 1.5px solid rgba(255,255,255,.95);
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(100,60,200,.06);
+      transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+    }
+    .wish-item:hover {
+      border-color: rgba(245,158,11,.35);
+      box-shadow: 0 4px 18px rgba(100,60,200,.1);
+    }
+    /* 책 아이콘 — 왼쪽에 크게 */
+    .wish-icon { font-size: 28px; flex-shrink: 0; }
+    /* 제목/저자 텍스트 영역 — 가운데, 넘치면 말줄임 */
+    .wish-info { flex: 1; min-width: 0; }
+    .wish-title {
+      font-size: 14px; font-weight: 600; color: #1e1240;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .wish-author { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+    /* 카테고리 뱃지 */
+    .wish-badge {
+      flex-shrink: 0;
+      padding: 3px 10px; border-radius: 10px;
+      font-size: 11px; font-weight: 600;
+      background: rgba(245,158,11,.12);
+      border: 1px solid rgba(245,158,11,.3);
+      color: #b45309;
+    }
+    /* 메모 (있을 경우) */
+    .wish-memo { font-size: 11px; color: #b45309; margin-top: 3px; font-style: italic; }
+
+    /* 위시리스트 액션 버튼 영역 */
+    .wish-actions { display: flex; gap: 7px; flex-shrink: 0; }
+    /* 읽기 시작 버튼 — 앰버 강조 */
+    .wish-start-btn {
+      padding: 7px 14px; border-radius: 9px; border: none;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #1a0f00; font-family: 'DM Sans', sans-serif;
+      font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .wish-start-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    /* 삭제 버튼 */
+    .wish-del-btn {
+      padding: 7px 10px; border-radius: 9px;
+      border: 1px solid rgba(239,68,68,.2);
+      background: rgba(239,68,68,.07);
+      color: #f87171; font-size: 13px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .wish-del-btn:hover { background: rgba(239,68,68,.15); color: #ef4444; }
+
+    /* 위시리스트 빈 상태 */
+    .wish-empty {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 12px; padding: 80px 20px;
+      color: #c4b5fd; text-align: center;
+    }
+    .wish-empty .empty-icon { font-size: 48px; opacity: 0.7; }
+    .wish-empty p { font-size: 14px; line-height: 1.6; }
+
     /* ── 모바일 탭 전환 바 — PC에서는 숨김 ── */
     .mobile-tab-bar {
       display: none; /* PC에서는 안 보임 */
@@ -497,6 +611,11 @@
       .book-grid { grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:14px; }
       .shelf-area { padding:16px; }
       .modal { width:90vw; }
+      /* 위시리스트 모바일 — 버튼/뱃지 줄바꿈 허용 */
+      #wishlistArea { padding: 16px; }
+      .wish-item { flex-wrap: wrap; gap: 10px; }
+      .wish-badge { order: 3; }
+      .wish-actions { order: 4; width: 100%; justify-content: flex-end; }
 
       /* 상세 뷰 — 탭 전환 방식으로 변경 */
       .detail-layout {
@@ -581,16 +700,27 @@
       <button class="add-book-btn" onclick="openAddModal()">+ 책 추가</button>
     </header>
 
-    <!-- 카테고리 탭 필터 -->
+    <!-- 뷰 모드 탭 — 내 책장 / 읽고 싶은 책 -->
+    <div class="view-tabs">
+      <button class="view-tab active" id="tabShelf" onclick="switchViewMode('shelf')">📚 내 책장</button>
+      <button class="view-tab" id="tabWishlist" onclick="switchViewMode('wishlist')">🔖 읽고 싶은 책</button>
+    </div>
+
+    <!-- 카테고리 탭 필터 — 내 책장 탭일 때만 표시 -->
     <div class="category-tabs" id="categoryTabs">
       <!-- JS가 동적으로 탭 생성 -->
     </div>
 
-    <!-- 책 그리드 -->
-    <div class="shelf-area">
+    <!-- 책 그리드 — 내 책장 탭 -->
+    <div class="shelf-area" id="shelfArea">
       <div class="book-grid" id="bookGrid">
         <!-- JS가 책 카드 동적 생성 -->
       </div>
+    </div>
+
+    <!-- 읽고 싶은 책 목록 — 위시리스트 탭 -->
+    <div id="wishlistArea">
+      <!-- JS가 위시리스트 아이템 동적 생성 -->
     </div>
   </div>
 
@@ -778,6 +908,51 @@
     </div>
   </div>
 
+  <!-- ════════════════════════════════════════
+       읽고 싶은 책 추가 모달
+  ════════════════════════════════════════ -->
+  <div class="modal-overlay" id="wishlistModal">
+    <div class="modal">
+      <h2 class="modal-title">🔖 읽고 싶은 책</h2>
+
+      <!-- 책 제목 -->
+      <div class="modal-group">
+        <div class="modal-label">책 제목 *</div>
+        <input class="modal-input" id="wishTitle" placeholder="예: 사피엔스"/>
+      </div>
+      <!-- 저자 -->
+      <div class="modal-group">
+        <div class="modal-label">저자</div>
+        <input class="modal-input" id="wishAuthor" placeholder="예: 유발 하라리"/>
+      </div>
+      <!-- 카테고리 -->
+      <div class="modal-group">
+        <div class="modal-label">카테고리</div>
+        <select class="modal-select" id="wishCategory">
+          <option value="소설">소설</option>
+          <option value="비문학">비문학</option>
+          <option value="자기계발">자기계발</option>
+          <option value="과학">과학</option>
+          <option value="역사">역사</option>
+          <option value="철학">철학</option>
+          <option value="경제">경제</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <!-- 짧은 메모 (왜 읽고 싶은지 등) -->
+      <div class="modal-group">
+        <div class="modal-label">메모 (선택)</div>
+        <input class="modal-input" id="wishMemo" placeholder="예: 친구 추천, 꼭 읽어야 함 등"/>
+      </div>
+
+      <!-- 확인/취소 버튼 -->
+      <div class="modal-btns">
+        <button class="modal-btn cancel" onclick="closeWishlistModal()">취소</button>
+        <button class="modal-btn confirm" onclick="confirmAddWish()">추가하기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 토스트 알림 -->
   <div id="toast"></div>
 
@@ -785,10 +960,15 @@
   <script>
     /* =============================================
        데이터 구조 초기값
-       books: 책 배열
+       books: 내 책장 배열 (읽었거나 읽는 중인 책)
+       wishlist: 읽고 싶은 책 배열
        각 책은 id, title, author, category, coverImage, startDate, endDate, notes 필드를 가짐
+       위시리스트 항목은 id, title, author, category, memo, addedDate 필드를 가짐
     ============================================= */
-    let data = { books: [] };
+    let data = { books: [], wishlist: [] };
+
+    /* 현재 책장/위시리스트 어느 탭을 보고 있는지 */
+    let viewMode = 'shelf'; // 'shelf' | 'wishlist'
 
     /* 현재 보고 있는 책의 id */
     let currentBookId = null;
@@ -819,18 +999,25 @@
         const snap = await db.collection('mindos').doc('reading').get();
         if (snap.exists) {
           data = snap.data();
-          // books 배열 없으면 초기화
+          // books / wishlist 배열 없으면 초기화 (기존 데이터 호환)
           if (!data.books) data.books = [];
+          if (!data.wishlist) data.wishlist = [];
         } else {
           // Firestore에 없으면 localStorage 확인
           const local = localStorage.getItem(LS_KEY);
-          if (local) data = JSON.parse(local);
+          if (local) {
+            data = JSON.parse(local);
+            if (!data.wishlist) data.wishlist = []; // 기존 데이터 호환
+          }
         }
       } catch(e) {
         // Firestore 실패 시 localStorage 폴백
         console.warn('Firestore 불러오기 실패, localStorage 사용:', e);
         const local = localStorage.getItem(LS_KEY);
-        if (local) data = JSON.parse(local);
+        if (local) {
+          data = JSON.parse(local);
+          if (!data.wishlist) data.wishlist = [];
+        }
       }
       renderShelf(); // 불러온 데이터로 책장 그리기
     }
@@ -853,12 +1040,167 @@
     }
 
     /* =============================================
+       뷰 모드 전환 — 내 책장 ↔ 읽고 싶은 책
+       (마치 TV 채널 바꾸듯 한 영역을 숨기고 다른 걸 보여줌)
+    ============================================= */
+    function switchViewMode(mode) {
+      viewMode = mode;
+
+      // 탭 버튼 active 상태 업데이트
+      document.getElementById('tabShelf').classList.toggle('active', mode === 'shelf');
+      document.getElementById('tabWishlist').classList.toggle('active', mode === 'wishlist');
+
+      // 카테고리 탭 / 책 그리드는 shelf 모드에서만 표시
+      const categoryTabs = document.getElementById('categoryTabs');
+      const shelfArea = document.getElementById('shelfArea');
+      const wishlistArea = document.getElementById('wishlistArea');
+
+      if (mode === 'shelf') {
+        categoryTabs.style.display = '';  // 기본값(flex)으로 복원
+        shelfArea.style.display = '';
+        wishlistArea.classList.remove('active');
+        // 헤더 버튼 텍스트 변경
+        document.querySelector('.add-book-btn').textContent = '+ 책 추가';
+      } else {
+        categoryTabs.style.display = 'none';
+        shelfArea.style.display = 'none';
+        wishlistArea.classList.add('active');
+        document.querySelector('.add-book-btn').textContent = '+ 위시 추가';
+      }
+
+      renderShelf();
+    }
+
+    /* =============================================
        책장 뷰 렌더링
        — data.books 배열을 읽어서 화면에 카드로 표시
     ============================================= */
     function renderShelf() {
+      if (viewMode === 'wishlist') {
+        renderWishlist(); // 위시리스트 탭이면 위시리스트만 렌더링
+        return;
+      }
       renderCategoryTabs();  // 카테고리 탭 먼저
       renderBooks();         // 책 카드
+    }
+
+    /* =============================================
+       위시리스트 렌더링
+       — data.wishlist 배열을 읽어서 목록으로 표시
+    ============================================= */
+    function renderWishlist() {
+      const area = document.getElementById('wishlistArea');
+      if (!data.wishlist || data.wishlist.length === 0) {
+        // 아직 아무것도 없을 때 안내 메시지
+        area.innerHTML = `
+          <div class="wish-empty">
+            <span class="empty-icon">🔖</span>
+            <p>읽고 싶은 책을 여기에 모아두세요!\n+ 위시 추가 버튼으로 첫 번째 책을 추가해보세요.</p>
+          </div>`;
+        return;
+      }
+
+      // 위시리스트 아이템 생성 (최신 순으로 정렬되어 있음)
+      area.innerHTML = data.wishlist.map(w => `
+        <div class="wish-item" id="wish-${w.id}">
+          <span class="wish-icon">📖</span>
+          <div class="wish-info">
+            <div class="wish-title">${escapeHtml(w.title || '제목 없음')}</div>
+            ${w.author ? `<div class="wish-author">${escapeHtml(w.author)}</div>` : ''}
+            ${w.memo ? `<div class="wish-memo">"${escapeHtml(w.memo)}"</div>` : ''}
+          </div>
+          <span class="wish-badge">${escapeHtml(w.category || '기타')}</span>
+          <div class="wish-actions">
+            <!-- 읽기 시작 → 책장으로 이동 -->
+            <button class="wish-start-btn" onclick="moveWishToShelf('${w.id}')">📚 읽기 시작</button>
+            <!-- 삭제 -->
+            <button class="wish-del-btn" onclick="deleteWishItem('${w.id}')" title="삭제">✕</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    /* =============================================
+       위시리스트 모달 열기/닫기
+    ============================================= */
+    function openWishlistModal() {
+      // 입력 초기화
+      document.getElementById('wishTitle').value = '';
+      document.getElementById('wishAuthor').value = '';
+      document.getElementById('wishCategory').value = '소설';
+      document.getElementById('wishMemo').value = '';
+      document.getElementById('wishlistModal').classList.add('show');
+      setTimeout(() => document.getElementById('wishTitle').focus(), 200);
+    }
+
+    function closeWishlistModal() {
+      document.getElementById('wishlistModal').classList.remove('show');
+    }
+
+    /* 위시리스트 항목 추가 확인 */
+    function confirmAddWish() {
+      const title = document.getElementById('wishTitle').value.trim();
+      if (!title) {
+        showToast('책 제목을 입력해주세요!');
+        document.getElementById('wishTitle').focus();
+        return;
+      }
+
+      // 새 위시리스트 항목 객체 생성
+      const newWish = {
+        id: generateId(),
+        title: title,
+        author: document.getElementById('wishAuthor').value.trim(),
+        category: document.getElementById('wishCategory').value,
+        memo: document.getElementById('wishMemo').value.trim(),
+        addedDate: new Date().toISOString().slice(0, 10) // 추가한 날짜
+      };
+
+      // 배열 앞에 추가 (최신이 맨 위)
+      data.wishlist.unshift(newWish);
+      saveData();
+      closeWishlistModal();
+      renderWishlist();
+      showToast(`"${title}" 위시리스트에 추가됐어요! 🔖`);
+    }
+
+    /* 위시리스트 항목 삭제 */
+    function deleteWishItem(wishId) {
+      const wish = data.wishlist.find(w => w.id === wishId);
+      const title = wish ? (wish.title || '이 책') : '이 책';
+      if (!confirm(`"${title}"을 위시리스트에서 삭제할까요?`)) return;
+      data.wishlist = data.wishlist.filter(w => w.id !== wishId);
+      saveData();
+      renderWishlist();
+      showToast('위시리스트에서 삭제했어요.');
+    }
+
+    /* 위시리스트 → 책장으로 이동 ("읽기 시작" 클릭 시) */
+    function moveWishToShelf(wishId) {
+      const wish = data.wishlist.find(w => w.id === wishId);
+      if (!wish) return;
+
+      // 위시리스트 항목을 책 객체로 변환해서 books 배열에 추가
+      const newBook = {
+        id: generateId(),
+        title: wish.title,
+        author: wish.author,
+        category: wish.category,
+        coverImage: null,
+        startDate: new Date().toISOString().slice(0, 10), // 오늘부터 읽기 시작
+        endDate: '',
+        notes: ''
+      };
+
+      // 위시에서 제거하고 책장에 추가
+      data.wishlist = data.wishlist.filter(w => w.id !== wishId);
+      data.books.unshift(newBook);
+      saveData();
+      showToast(`"${newBook.title}" 읽기 시작! 책장으로 이동했어요 📚`);
+
+      // 책장 탭으로 전환하고 바로 해당 책 열기
+      switchViewMode('shelf');
+      openDetail(newBook.id);
     }
 
     /* 카테고리 탭 렌더링 */
@@ -1089,8 +1431,14 @@
 
     /* =============================================
        책 추가 모달
+       — 현재 뷰 모드에 따라 책장 추가 or 위시리스트 추가 모달 열기
     ============================================= */
     function openAddModal() {
+      // 위시리스트 탭이면 위시리스트 모달 열기
+      if (viewMode === 'wishlist') {
+        openWishlistModal();
+        return;
+      }
       // 모달 초기화
       document.getElementById('modalTitle').value = '';
       document.getElementById('modalAuthor').value = '';
@@ -1157,14 +1505,20 @@
       openDetail(newBook.id);
     }
 
-    /* ESC 키로 모달 닫기 */
+    /* ESC 키로 모달 닫기 — 책 추가/위시리스트 둘 다 */
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeAddModal();
+      if (e.key === 'Escape') {
+        closeAddModal();
+        closeWishlistModal();
+      }
     });
 
     /* 모달 바깥 클릭 시 닫기 */
     document.getElementById('addModal').addEventListener('click', function(e) {
       if (e.target === this) closeAddModal();
+    });
+    document.getElementById('wishlistModal').addEventListener('click', function(e) {
+      if (e.target === this) closeWishlistModal();
     });
 
     /* =============================================

@@ -551,6 +551,240 @@
       pointer-events: none; z-index: 999; white-space: nowrap;
     }
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ────────────────────────────────
+       진행 상태 배지 — 결과물 카드에 표시
+    ──────────────────────────────── */
+    .stage-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 600; padding: 2px 9px; border-radius: 8px;
+      margin: 0 12px 8px;
+    }
+    .stage-idea     { background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }
+    .stage-making   { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .stage-done     { background: #f0fdf4; color: #166534; border: 1px solid #86efac; }
+    .stage-launched { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+
+    /* ────────────────────────────────
+       상세 패널 모달 — 결과물 클릭 시 열리는 대형 패널
+    ──────────────────────────────── */
+    .detail-modal {
+      background: rgba(255,255,255,.98);
+      border-radius: 22px; padding: 0;
+      width: 100%; max-width: 700px;
+      max-height: 90vh; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+      display: flex; flex-direction: column;
+    }
+
+    /* 상세 패널 헤더 */
+    .detail-header {
+      padding: 20px 20px 0;
+      border-bottom: 1px solid rgba(253,230,138,.5);
+      flex-shrink: 0;
+    }
+    .detail-header-top {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 12px;
+    }
+    .detail-title {
+      flex: 1;
+      font-family: 'Playfair Display', serif;
+      font-size: 18px; color: #1c0a00; font-style: italic;
+      word-break: break-word;
+    }
+    .detail-header-btns { display: flex; gap: 6px; flex-shrink: 0; }
+    .detail-hdr-btn {
+      padding: 5px 10px; border-radius: 9px; font-size: 12px;
+      border: 1.5px solid #fde68a; background: transparent; color: #d97706;
+      cursor: pointer; font-family: 'DM Sans', sans-serif; min-height: 32px;
+      transition: all .15s;
+    }
+    .detail-hdr-btn:hover { background: #fef3c7; }
+    .detail-hdr-btn.danger:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+    .detail-hdr-btn.close-btn {
+      border-color: transparent; background: #f3f4f6; color: #6b7280;
+    }
+    .detail-hdr-btn.close-btn:hover { background: #e5e7eb; }
+
+    /* 단계 선택 버튼 */
+    .stage-selector { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .stage-btn {
+      padding: 5px 12px; border-radius: 12px; font-size: 12px; font-weight: 500;
+      border: 1.5px solid #fde68a; background: transparent; color: #78604a;
+      cursor: pointer; transition: all .18s; min-height: 32px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .stage-btn:hover:not(.active) { background: #fef3c7; }
+    /* 단계별 active 색상 */
+    .stage-btn.active.stage-idea     { background: #f3f4f6; color: #374151; border-color: #9ca3af; }
+    .stage-btn.active.stage-making   { background: #fff7ed; color: #c2410c; border-color: #fb923c; }
+    .stage-btn.active.stage-done     { background: #f0fdf4; color: #166534; border-color: #4ade80; }
+    .stage-btn.active.stage-launched { background: #fef3c7; color: #92400e; border-color: #fbbf24; }
+
+    /* 상세 탭 바 */
+    .detail-tabs {
+      display: flex; gap: 0;
+      margin: 0 0;
+    }
+    .detail-tab {
+      padding: 10px 16px; font-size: 13px; font-weight: 500;
+      color: #78604a; cursor: pointer; border: none; background: none;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: all .18s; font-family: 'DM Sans', sans-serif; min-height: 40px;
+    }
+    .detail-tab:hover { color: #1c0a00; }
+    .detail-tab.active { color: #92400e; border-bottom-color: #d97706; font-weight: 600; }
+
+    /* 탭 콘텐츠 영역 */
+    .detail-body { flex: 1; overflow-y: auto; padding: 16px 20px 24px; }
+    .detail-tab-panel { display: none; }
+    .detail-tab-panel.active { display: block; }
+
+    /* ── 진행 로그 탭 ── */
+    .patch-add-row {
+      display: flex; gap: 8px; margin-bottom: 16px; align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .patch-date-input {
+      width: 130px; flex-shrink: 0;
+      padding: 8px 10px; border: 1.5px solid #fde68a; border-radius: 10px;
+      font-size: 12px; font-family: 'DM Sans', sans-serif; color: #1c0a00;
+      background: rgba(255,255,255,.8); min-height: 38px;
+    }
+    .patch-date-input:focus { outline: none; border-color: #d97706; }
+    .patch-content-input {
+      flex: 1; min-width: 120px; padding: 8px 10px;
+      border: 1.5px solid #fde68a; border-radius: 10px;
+      font-size: 13px; font-family: 'DM Sans', sans-serif; color: #1c0a00;
+      background: rgba(255,255,255,.8); min-height: 38px;
+    }
+    .patch-content-input:focus { outline: none; border-color: #d97706; }
+    .patch-add-btn {
+      padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 600;
+      background: #d97706; color: white; border: none; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; min-height: 38px; white-space: nowrap;
+    }
+    .patch-add-btn:hover { background: #b45309; }
+
+    /* 패치노트 타임라인 아이템 */
+    .patch-list { display: flex; flex-direction: column; gap: 8px; }
+    .patch-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; border-radius: 12px;
+      background: rgba(254,243,199,.4); border: 1px solid rgba(253,230,138,.5);
+    }
+    .patch-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #d97706; flex-shrink: 0; margin-top: 5px;
+    }
+    .patch-item-info { flex: 1; min-width: 0; }
+    .patch-item-date { font-size: 11px; color: #92400e; font-weight: 600; margin-bottom: 2px; }
+    .patch-item-text { font-size: 13px; color: #1c0a00; line-height: 1.5; word-break: break-word; }
+    .patch-del-btn {
+      font-size: 13px; color: #c4a882; background: none; border: none;
+      cursor: pointer; flex-shrink: 0; padding: 2px; font-family: 'DM Sans', sans-serif;
+    }
+    .patch-del-btn:hover { color: #dc2626; }
+
+    /* ── 기획 노트 탭 ── */
+    .plan-note-area {
+      min-height: 200px; outline: none;
+      font-size: 14px; line-height: 1.72; color: #1c0a00; caret-color: #d97706;
+    }
+    .plan-note-area:empty::before {
+      content: "방향성, 고민, 참고 링크, 해야 할 것들을 자유롭게 적어두세요…";
+      color: #c4a882; pointer-events: none;
+    }
+    .plan-note-area h3 { font-size: 16px; margin: 8px 0 4px; color: #92400e; }
+    .plan-note-area blockquote {
+      border-left: 3px solid #fbbf24; padding-left: 12px;
+      color: #78604a; margin: 6px 0; font-style: italic;
+    }
+    .plan-note-area ul, .plan-note-area ol { padding-left: 20px; }
+    .plan-note-area hr { border: none; border-top: 1.5px solid #fde68a; margin: 12px 0; }
+    .plan-note-area img { max-width: 100%; border-radius: 8px; margin: 6px 0; }
+    .plan-save-hint {
+      font-size: 11px; color: #c4a882; text-align: right; margin-top: 8px; min-height: 16px;
+    }
+
+    /* ── 피드백 탭 ── */
+    .feedback-add-area {
+      background: rgba(254,243,199,.3);
+      border: 1.5px solid rgba(253,230,138,.6);
+      border-radius: 14px; padding: 14px; margin-bottom: 16px;
+    }
+    .feedback-add-row {
+      display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .feedback-input {
+      flex: 1; min-width: 100px; padding: 8px 10px;
+      border: 1.5px solid #fde68a; border-radius: 10px;
+      font-size: 13px; font-family: 'DM Sans', sans-serif; color: #1c0a00;
+      background: rgba(255,255,255,.8); min-height: 38px;
+    }
+    .feedback-input:focus { outline: none; border-color: #d97706; }
+    .feedback-select {
+      padding: 8px 10px; border: 1.5px solid #fde68a; border-radius: 10px;
+      font-size: 13px; font-family: 'DM Sans', sans-serif; color: #1c0a00;
+      background: rgba(255,255,255,.8); min-height: 38px; cursor: pointer;
+    }
+    .feedback-select:focus { outline: none; border-color: #d97706; }
+    /* 반응 선택 버튼 */
+    .sentiment-btns { display: flex; gap: 6px; margin-bottom: 10px; }
+    .sentiment-btn {
+      flex: 1; padding: 7px; border-radius: 10px; font-size: 12px; font-weight: 500;
+      border: 1.5px solid #fde68a; background: transparent; color: #78604a;
+      cursor: pointer; transition: all .18s; min-height: 36px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .sentiment-btn:hover { border-color: #d97706; }
+    .sentiment-btn.active-positive { background: #f0fdf4; border-color: #4ade80; color: #166534; }
+    .sentiment-btn.active-neutral  { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
+    .sentiment-btn.active-negative { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+    .feedback-content-input {
+      width: 100%; padding: 8px 10px; border: 1.5px solid #fde68a; border-radius: 10px;
+      font-size: 13px; font-family: 'DM Sans', sans-serif; color: #1c0a00;
+      background: rgba(255,255,255,.8); min-height: 80px; resize: vertical; margin-bottom: 10px;
+    }
+    .feedback-content-input:focus { outline: none; border-color: #d97706; }
+    .feedback-submit-btn {
+      width: 100%; padding: 10px; border-radius: 12px; font-size: 13px; font-weight: 500;
+      background: #d97706; color: white; border: none; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; min-height: 44px;
+    }
+    .feedback-submit-btn:hover { background: #b45309; }
+    /* 피드백 목록 아이템 */
+    .feedback-list { display: flex; flex-direction: column; gap: 8px; }
+    .feedback-item {
+      display: flex; gap: 10px; padding: 10px 12px; border-radius: 12px;
+      background: rgba(255,255,255,.7); border: 1px solid rgba(253,230,138,.5);
+    }
+    .sentiment-badge {
+      flex-shrink: 0; padding: 2px 8px; border-radius: 8px;
+      font-size: 10px; font-weight: 700; align-self: flex-start; margin-top: 2px;
+    }
+    .sent-positive { background: #f0fdf4; color: #166534; border: 1px solid #86efac; }
+    .sent-neutral  { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+    .sent-negative { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+    .feedback-item-info { flex: 1; min-width: 0; }
+    .feedback-item-meta {
+      font-size: 11px; color: #78604a; margin-bottom: 4px;
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .feedback-item-source { font-weight: 600; color: #92400e; }
+    .feedback-item-text { font-size: 13px; color: #1c0a00; line-height: 1.5; word-break: break-word; }
+    .fb-del-btn {
+      font-size: 13px; color: #c4a882; background: none; border: none;
+      cursor: pointer; flex-shrink: 0; padding: 2px; font-family: 'DM Sans', sans-serif;
+    }
+    .fb-del-btn:hover { color: #dc2626; }
+
+    /* 빈 상태 안내 */
+    .detail-empty {
+      text-align: center; padding: 30px 16px;
+      color: #a68a60; font-size: 13px; line-height: 1.7;
+    }
   </style>
 </head>
 <body>
@@ -660,6 +894,119 @@
       <div class="modal-btns">
         <button class="modal-btn cancel" onclick="closeCreationModal()">취소</button>
         <button class="modal-btn confirm" onclick="confirmCreation()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 결과물 상세 패널 모달 — 카드 클릭 시 열림 -->
+  <div class="modal-overlay" id="detailPanelModal">
+    <div class="detail-modal">
+
+      <!-- ── 헤더: 제목 / 단계 선택 / 탭 바 ── -->
+      <div class="detail-header">
+        <div class="detail-header-top">
+          <!-- 결과물 제목 -->
+          <div class="detail-title" id="detailTitle"></div>
+          <div class="detail-header-btns">
+            <!-- 수정 버튼 — 기존 결과물 수정 모달 열기 -->
+            <button class="detail-hdr-btn"
+              onclick="openCreationModal(currentDetailId); closeDetailPanel()">✏️ 수정</button>
+            <!-- 삭제 버튼 -->
+            <button class="detail-hdr-btn danger"
+              onclick="deleteCreationFromDetail()">🗑️</button>
+            <!-- 닫기 버튼 -->
+            <button class="detail-hdr-btn close-btn"
+              onclick="closeDetailPanel()">✕</button>
+          </div>
+        </div>
+
+        <!-- 진행 단계 선택 버튼 — 클릭하면 단계 변경됨 -->
+        <div class="stage-selector">
+          <button class="stage-btn stage-idea"     onclick="setStage('idea')">💡 아이디어</button>
+          <button class="stage-btn stage-making"   onclick="setStage('making')">🔨 제작 중</button>
+          <button class="stage-btn stage-done"     onclick="setStage('done')">✅ 완성</button>
+          <button class="stage-btn stage-launched" onclick="setStage('launched')">🚀 출시</button>
+        </div>
+
+        <!-- 탭 바: 진행 로그 / 기획 노트 / 피드백 -->
+        <div class="detail-tabs">
+          <button class="detail-tab active" id="dtab-patch"    onclick="switchDetailTab('patch')">📋 진행 로그</button>
+          <button class="detail-tab"        id="dtab-plan"     onclick="switchDetailTab('plan')">📝 기획 노트</button>
+          <button class="detail-tab"        id="dtab-feedback" onclick="switchDetailTab('feedback')">💬 피드백</button>
+        </div>
+      </div>
+
+      <!-- ── 탭 콘텐츠 영역 ── -->
+      <div class="detail-body">
+
+        <!-- 탭 1: 진행 로그 (패치노트) -->
+        <div class="detail-tab-panel active" id="dpanel-patch">
+          <!-- 새 항목 추가 행 -->
+          <div class="patch-add-row">
+            <!-- 날짜 입력 — 기본값은 오늘 -->
+            <input type="date" class="patch-date-input" id="patchDateInput" />
+            <!-- 내용 입력 — Enter 키로도 추가 가능 -->
+            <input type="text" class="patch-content-input" id="patchContentInput"
+              placeholder="업데이트 내용 (예: v1.0 출시, 버그 수정…)"
+              onkeydown="if(event.key==='Enter') addPatchNote()" />
+            <button class="patch-add-btn" onclick="addPatchNote()">+ 추가</button>
+          </div>
+          <!-- 패치노트 타임라인 목록 -->
+          <div class="patch-list" id="patchList"></div>
+        </div>
+
+        <!-- 탭 2: 기획 노트 (방향성 / 고민 / 참고) -->
+        <div class="detail-tab-panel" id="dpanel-plan">
+          <!-- 서식 툴바 — workNoteArea 와 동일한 패턴 -->
+          <div class="note-toolbar">
+            <button class="toolbar-btn" onclick="planFmt('bold')"><b>B</b></button>
+            <button class="toolbar-btn" onclick="planFmt('italic')"><i>I</i></button>
+            <button class="toolbar-btn" onclick="planFmt('underline')"><u>U</u></button>
+            <button class="toolbar-btn" onclick="planFmt('insertUnorderedList')">• 목록</button>
+            <button class="toolbar-btn" onclick="planFmt('insertOrderedList')">1. 목록</button>
+            <button class="toolbar-btn" onclick="planFmt('formatBlock', 'h3')">제목</button>
+            <button class="toolbar-btn" onclick="planFmt('formatBlock', 'blockquote')">인용</button>
+            <button class="toolbar-btn" onclick="insertPlanDivider()">── 구분선</button>
+          </div>
+          <!-- contenteditable 노트 편집 영역 — 500ms debounce 자동저장 -->
+          <div class="plan-note-area" id="planNoteArea" contenteditable="true"></div>
+          <!-- 자동저장 상태 표시 -->
+          <div class="plan-save-hint" id="planSaveHint"></div>
+        </div>
+
+        <!-- 탭 3: 피드백 -->
+        <div class="detail-tab-panel" id="dpanel-feedback">
+          <!-- 피드백 추가 폼 -->
+          <div class="feedback-add-area">
+            <div class="feedback-add-row">
+              <!-- 날짜 -->
+              <input type="date" class="feedback-input" id="fbDateInput"
+                style="max-width:140px; flex-shrink:0" />
+              <!-- 출처 선택 -->
+              <select class="feedback-select" id="fbSourceInput">
+                <option value="유튜브 댓글">유튜브 댓글</option>
+                <option value="인스타 DM">인스타 DM</option>
+                <option value="지인 반응">지인 반응</option>
+                <option value="설문 응답">설문 응답</option>
+                <option value="직접 반응">직접 반응</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+            <!-- 긍정 / 중립 / 부정 반응 선택 -->
+            <div class="sentiment-btns">
+              <button class="sentiment-btn" id="sBtn-positive" onclick="selectSentiment('positive')">👍 긍정</button>
+              <button class="sentiment-btn" id="sBtn-neutral"  onclick="selectSentiment('neutral')">😐 중립</button>
+              <button class="sentiment-btn" id="sBtn-negative" onclick="selectSentiment('negative')">👎 부정</button>
+            </div>
+            <!-- 피드백 내용 -->
+            <textarea class="feedback-content-input" id="fbContentInput"
+              placeholder="어떤 반응이었는지 구체적으로 적어두세요…"></textarea>
+            <button class="feedback-submit-btn" onclick="addFeedback()">피드백 추가</button>
+          </div>
+          <!-- 피드백 목록 -->
+          <div class="feedback-list" id="feedbackList"></div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -821,29 +1168,47 @@
        데이터 불러오기 — localStorage 1순위, 없으면 Firestore
     ============================================================ */
     async function loadData() {
-      /* localStorage에서 먼저 시도 */
+      /* ── 1단계: localStorage 읽기 + 저장 시각(_savedAt) 확인 ── */
       const local = localStorage.getItem('mindos_creator');
+      let localData = null;
+      let localTime = 0;
       if (local) {
         try {
-          data = JSON.parse(local);
-          return;
-        } catch(e) { /* JSON 파싱 실패시 Firestore로 폴백 */ }
+          localData = JSON.parse(local);
+          localTime = localData._savedAt || 0;  /* 저장 시각 (없으면 0) */
+        } catch(e) { /* JSON 파싱 실패 무시 */ }
       }
-      /* localStorage 없으면 Firestore (처음 접속하는 기기) */
+
+      /* ── 2단계: Firestore도 읽어서 저장 시각 비교 ── */
+      /* 핵심: localStorage만 믿으면 기기 간 동기화가 안 됨.
+         두 곳의 타임스탬프를 비교해서 더 최신 데이터를 사용한다. */
       try {
         const snap = await db.collection('mindos').doc('creator').get();
-        if (snap.exists) data = snap.data();
+        if (snap.exists) {
+          const fsData = snap.data();
+          const fsTime = fsData._savedAt || 0;
+          if (fsTime > localTime) {
+            /* Firestore가 더 최신 → Firestore 사용 + localStorage 동기화 */
+            data = fsData;
+            localStorage.setItem('mindos_creator', JSON.stringify(data));
+            return;
+          }
+        }
       } catch(e) { console.error('Firestore 불러오기 실패:', e); }
+
+      /* ── 3단계: localStorage가 더 최신이거나 Firestore 실패 → localStorage 사용 ── */
+      if (localData) data = localData;
     }
 
     /* ============================================================
        데이터 저장 — localStorage + Firestore 동시
+       _savedAt: 저장 시각 타임스탬프 — 기기 간 동기화 판별에 사용
     ============================================================ */
     function saveData() {
-      /* localStorage에 즉시 저장 */
+      data._savedAt = Date.now();  /* 저장 시각 기록 (이걸로 최신 데이터 판별) */
       localStorage.setItem('mindos_creator', JSON.stringify(data));
-      /* Firestore에도 저장 (실패해도 localStorage는 유지되므로 무시) */
-      db.collection('mindos').doc('creator').set(data).catch(e => console.error('Firestore 저장 실패:', e));
+      db.collection('mindos').doc('creator').set(data)
+        .catch(e => console.error('Firestore 저장 실패 (이미지가 너무 크면 실패할 수 있어요):', e));
     }
 
     /* ============================================================
@@ -1367,7 +1732,12 @@
           description: document.getElementById('creationDescInput').value.trim(),
           url:         document.getElementById('creationUrlInput').value.trim(),
           image:       pendingCreationThumb || null,
-          createdAt:   Date.now()
+          createdAt:   Date.now(),
+          /* 신규 필드 기본값 — 상세 패널에서 채워나감 */
+          stage:        'idea',   /* 💡 아이디어 단계에서 시작 */
+          patchNotes:   [],       /* 진행 로그 배열 */
+          planNote:     '',       /* 기획 노트 HTML */
+          feedbackList: []        /* 피드백 배열 */
         });
       }
 
@@ -1389,31 +1759,45 @@
         return;
       }
 
-      grid.innerHTML = data.creations.map(c => `
-        <div class="creation-card">
-          <!-- 썸네일 영역 — 이미지 있으면 표시, 없으면 이모지 -->
-          <div class="creation-thumb">
-            ${c.image
-              ? `<img src="${c.image}" alt="썸네일">`
-              : '<span>🚀</span>'}
-          </div>
-          <!-- 정보 영역 -->
-          <div class="creation-info">
-            <div class="creation-title">${c.title}</div>
-            ${c.description
-              ? `<div class="creation-desc">${c.description}</div>`
-              : ''}
-          </div>
-          <!-- 액션 버튼 -->
-          <div class="creation-actions">
-            ${c.url
-              ? `<button class="creation-action-btn" onclick="window.open('${c.url}','_blank')">🔗 열기</button>`
-              : ''}
-            <button class="creation-action-btn" onclick="openCreationModal('${c.id}')">✏️ 수정</button>
-            <button class="creation-action-btn danger" onclick="deleteCreation('${c.id}')">🗑️ 삭제</button>
-          </div>
-        </div>`
-      ).join('');
+      /* 단계별 배지 정보 (텍스트 + CSS 클래스) */
+      const stageInfo = {
+        idea:     { cls: 'stage-idea',     txt: '💡 아이디어' },
+        making:   { cls: 'stage-making',   txt: '🔨 제작 중'  },
+        done:     { cls: 'stage-done',     txt: '✅ 완성'     },
+        launched: { cls: 'stage-launched', txt: '🚀 출시'     }
+      };
+
+      grid.innerHTML = data.creations.map(c => {
+        /* 단계 배지 — stage 없는 기존 데이터는 '아이디어'로 표시 */
+        const s = stageInfo[c.stage] || stageInfo.idea;
+        return `
+          <!-- 카드 클릭 → 상세 패널 열림 -->
+          <div class="creation-card" onclick="openDetailPanel('${c.id}')">
+            <!-- 썸네일 영역 — 이미지 있으면 표시, 없으면 이모지 -->
+            <div class="creation-thumb">
+              ${c.image
+                ? `<img src="${c.image}" alt="썸네일">`
+                : '<span>🚀</span>'}
+            </div>
+            <!-- 진행 상태 배지 -->
+            <span class="stage-badge ${s.cls}">${s.txt}</span>
+            <!-- 정보 영역 -->
+            <div class="creation-info">
+              <div class="creation-title">${c.title}</div>
+              ${c.description
+                ? `<div class="creation-desc">${c.description}</div>`
+                : ''}
+            </div>
+            <!-- 액션 버튼 — stopPropagation으로 카드 클릭 이벤트와 분리 -->
+            <div class="creation-actions">
+              ${c.url
+                ? `<button class="creation-action-btn" onclick="window.open('${c.url}','_blank'); event.stopPropagation()">🔗 열기</button>`
+                : ''}
+              <button class="creation-action-btn" onclick="openCreationModal('${c.id}'); event.stopPropagation()">✏️ 수정</button>
+              <button class="creation-action-btn danger" onclick="deleteCreation('${c.id}'); event.stopPropagation()">🗑️ 삭제</button>
+            </div>
+          </div>`;
+      }).join('');
     }
 
     /* ============================================================
@@ -1584,6 +1968,314 @@
       t.classList.add('show');
       clearTimeout(showToast._timer);
       showToast._timer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    /* ============================================================
+       상세 패널 — 전역 변수
+       currentDetailId  : 현재 열려있는 결과물 id
+       curSentiment     : 피드백 반응 선택값 ('positive' | 'neutral' | 'negative')
+       planNoteSaveTimer: 기획 노트 debounce 타이머
+    ============================================================ */
+    let currentDetailId   = null;
+    let curSentiment      = 'neutral';
+    let planNoteSaveTimer = null;
+
+    /* ============================================================
+       상세 패널 열기 — 해당 결과물 데이터로 전체 채우기
+    ============================================================ */
+    function openDetailPanel(id) {
+      const c = data.creations.find(c => c.id === id);
+      if (!c) return;
+      currentDetailId = id;
+
+      /* 제목 표시 */
+      document.getElementById('detailTitle').textContent = c.title;
+
+      /* 단계 버튼 active 상태 업데이트 */
+      updateStageBtns(c.stage || 'idea');
+
+      /* 첫 탭(진행 로그)으로 리셋 */
+      switchDetailTab('patch');
+
+      /* 진행 로그 렌더링 */
+      renderPatchNotes();
+
+      /* 기획 노트 로드 */
+      document.getElementById('planNoteArea').innerHTML = c.planNote || '';
+      document.getElementById('planSaveHint').textContent = '';
+
+      /* 피드백 목록 렌더링 */
+      renderFeedbackList();
+
+      /* 입력 초기화 — 오늘 날짜 기본 */
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById('patchDateInput').value   = today;
+      document.getElementById('patchContentInput').value = '';
+      document.getElementById('fbDateInput').value      = today;
+      document.getElementById('fbContentInput').value   = '';
+      curSentiment = 'neutral';
+      updateSentimentBtns();
+
+      /* 패널 열기 */
+      document.getElementById('detailPanelModal').classList.add('open');
+    }
+
+    /* ============================================================
+       상세 패널 닫기 — 기획 노트 즉시 저장 후 닫기
+    ============================================================ */
+    function closeDetailPanel() {
+      savePlanNote();  /* 닫기 전 기획 노트 저장 */
+      document.getElementById('detailPanelModal').classList.remove('open');
+      currentDetailId = null;
+    }
+
+    /* ============================================================
+       상세 패널 탭 전환
+       tab: 'patch' | 'plan' | 'feedback'
+    ============================================================ */
+    function switchDetailTab(tab) {
+      document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.detail-tab-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('dtab-' + tab).classList.add('active');
+      document.getElementById('dpanel-' + tab).classList.add('active');
+    }
+
+    /* ============================================================
+       진행 단계 변경
+       stage: 'idea' | 'making' | 'done' | 'launched'
+    ============================================================ */
+    function setStage(stage) {
+      const c = data.creations.find(c => c.id === currentDetailId);
+      if (!c) return;
+      c.stage = stage;
+      saveData();
+      updateStageBtns(stage);
+      renderCreationGrid();   /* 카드 배지도 즉시 업데이트 */
+      const msgs = { idea: '💡 아이디어', making: '🔨 제작 중', done: '✅ 완성', launched: '🚀 출시!' };
+      showToast(msgs[stage] || '단계 변경됨');
+    }
+
+    /* 단계 버튼 active 클래스 업데이트 */
+    function updateStageBtns(stage) {
+      document.querySelectorAll('.stage-btn').forEach(btn => btn.classList.remove('active'));
+      /* 각 버튼에 stage-xxx 클래스가 있으므로 해당 클래스로 찾음 */
+      const map = { idea: 'stage-idea', making: 'stage-making', done: 'stage-done', launched: 'stage-launched' };
+      const target = document.querySelector(`.stage-btn.${map[stage] || 'stage-idea'}`);
+      if (target) target.classList.add('active');
+    }
+
+    /* ============================================================
+       패치노트(진행 로그) 추가
+    ============================================================ */
+    function addPatchNote() {
+      const c = data.creations.find(c => c.id === currentDetailId);
+      if (!c) return;
+      const date    = document.getElementById('patchDateInput').value;
+      const content = document.getElementById('patchContentInput').value.trim();
+      if (!content) { showToast('내용을 입력해주세요'); return; }
+
+      if (!c.patchNotes) c.patchNotes = [];
+      /* 최신 항목이 위에 오도록 unshift */
+      c.patchNotes.unshift({
+        id:        'p_' + Date.now(),
+        date:      date || new Date().toISOString().slice(0, 10),
+        content,
+        createdAt: Date.now()
+      });
+
+      document.getElementById('patchContentInput').value = '';
+      saveData();
+      renderPatchNotes();
+      showToast('항목 추가됐어요 📋');
+    }
+
+    /* ============================================================
+       패치노트 삭제
+    ============================================================ */
+    function deletePatchNote(patchId) {
+      const c = data.creations.find(c => c.id === currentDetailId);
+      if (!c || !c.patchNotes) return;
+      c.patchNotes = c.patchNotes.filter(p => p.id !== patchId);
+      saveData();
+      renderPatchNotes();
+    }
+
+    /* ============================================================
+       패치노트 목록 렌더링 — 역순(최신 위) 표시
+    ============================================================ */
+    function renderPatchNotes() {
+      const c    = data.creations.find(c => c.id === currentDetailId);
+      const wrap = document.getElementById('patchList');
+      if (!wrap) return;
+      const notes = c?.patchNotes || [];
+
+      if (notes.length === 0) {
+        wrap.innerHTML = '<div class="detail-empty">아직 업데이트 기록이 없어요<br>제작 과정을 날짜별로 기록해보세요 📋</div>';
+        return;
+      }
+      wrap.innerHTML = notes.map(p => `
+        <div class="patch-item">
+          <div class="patch-dot"></div>
+          <div class="patch-item-info">
+            <div class="patch-item-date">${p.date}</div>
+            <div class="patch-item-text">${p.content}</div>
+          </div>
+          <button class="patch-del-btn" onclick="deletePatchNote('${p.id}')">🗑️</button>
+        </div>`
+      ).join('');
+    }
+
+    /* ============================================================
+       기획 노트 서식 적용 — workNoteArea와 동일한 패턴
+    ============================================================ */
+    function planFmt(cmd, val) {
+      document.getElementById('planNoteArea').focus();
+      document.execCommand(cmd, false, val || null);
+    }
+    function insertPlanDivider() {
+      document.getElementById('planNoteArea').focus();
+      document.execCommand('insertHTML', false, '<hr>');
+    }
+
+    /* ============================================================
+       기획 노트 저장 — 500ms debounce 자동저장
+    ============================================================ */
+    function savePlanNote() {
+      if (!currentDetailId) return;
+      const c = data.creations.find(c => c.id === currentDetailId);
+      if (!c) return;
+      const hint = document.getElementById('planSaveHint');
+      c.planNote = document.getElementById('planNoteArea').innerHTML;
+      saveData();
+      if (hint) {
+        hint.textContent = '저장됨 ✓';
+        setTimeout(() => { if (hint) hint.textContent = ''; }, 2000);
+      }
+    }
+
+    /* 기획 노트 — 타이핑 시 debounce 자동저장 */
+    document.getElementById('planNoteArea').addEventListener('input', function() {
+      clearTimeout(planNoteSaveTimer);
+      planNoteSaveTimer = setTimeout(savePlanNote, 500);
+    });
+
+    /* 기획 노트 — Ctrl+V 이미지 붙여넣기 (workNoteArea 패턴 동일) */
+    document.getElementById('planNoteArea').addEventListener('paste', function(e) {
+      for (const item of e.clipboardData.items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const reader = new FileReader();
+          reader.onload = ev => {
+            compressImage(ev.target.result, 1200, 0.8, compressed => {
+              document.execCommand('insertHTML', false,
+                `<img src="${compressed}" style="max-width:100%;border-radius:8px;margin:6px 0">`
+              );
+              savePlanNote();
+            });
+          };
+          reader.readAsDataURL(item.getAsFile());
+        }
+      }
+    });
+
+    /* ============================================================
+       피드백 반응(sentiment) 선택
+    ============================================================ */
+    function selectSentiment(s) {
+      curSentiment = s;
+      updateSentimentBtns();
+    }
+
+    /* 반응 버튼 active 클래스 업데이트 */
+    function updateSentimentBtns() {
+      ['positive', 'neutral', 'negative'].forEach(s => {
+        const btn = document.getElementById('sBtn-' + s);
+        /* 선택된 버튼엔 active-xxx 클래스, 나머지는 기본 클래스 */
+        btn.className = `sentiment-btn${curSentiment === s ? ' active-' + s : ''}`;
+      });
+    }
+
+    /* ============================================================
+       피드백 추가
+    ============================================================ */
+    function addFeedback() {
+      const c = data.creations.find(c => c.id === currentDetailId);
+      if (!c) return;
+      const date    = document.getElementById('fbDateInput').value;
+      const source  = document.getElementById('fbSourceInput').value;
+      const content = document.getElementById('fbContentInput').value.trim();
+      if (!content) { showToast('피드백 내용을 입력해주세요'); return; }
+
+      if (!c.feedbackList) c.feedbackList = [];
+      c.feedbackList.unshift({
+        id:        'f_' + Date.now(),
+        date:      date || new Date().toISOString().slice(0, 10),
+        source,
+        content,
+        sentiment: curSentiment,
+        createdAt: Date.now()
+      });
+
+      document.getElementById('fbContentInput').value = '';
+      saveData();
+      renderFeedbackList();
+      showToast('피드백 추가됐어요 💬');
+    }
+
+    /* ============================================================
+       피드백 삭제
+    ============================================================ */
+    function deleteFeedback(fbId) {
+      const c = data.creations.find(c => c.id === currentDetailId);
+      if (!c || !c.feedbackList) return;
+      c.feedbackList = c.feedbackList.filter(f => f.id !== fbId);
+      saveData();
+      renderFeedbackList();
+    }
+
+    /* ============================================================
+       피드백 목록 렌더링
+    ============================================================ */
+    function renderFeedbackList() {
+      const c    = data.creations.find(c => c.id === currentDetailId);
+      const wrap = document.getElementById('feedbackList');
+      if (!wrap) return;
+      const list = c?.feedbackList || [];
+
+      if (list.length === 0) {
+        wrap.innerHTML = '<div class="detail-empty">아직 피드백이 없어요<br>출시 후 사람들의 반응을 기록해보세요 💬</div>';
+        return;
+      }
+      /* 반응별 라벨과 CSS 클래스 */
+      const sentLabel = { positive: '긍정', neutral: '중립', negative: '부정' };
+      const sentCls   = { positive: 'sent-positive', neutral: 'sent-neutral', negative: 'sent-negative' };
+
+      wrap.innerHTML = list.map(f => `
+        <div class="feedback-item">
+          <span class="sentiment-badge ${sentCls[f.sentiment] || 'sent-neutral'}">${sentLabel[f.sentiment] || '중립'}</span>
+          <div class="feedback-item-info">
+            <div class="feedback-item-meta">
+              <span class="feedback-item-source">${f.source}</span>
+              <span>${f.date}</span>
+            </div>
+            <div class="feedback-item-text">${f.content}</div>
+          </div>
+          <button class="fb-del-btn" onclick="deleteFeedback('${f.id}')">🗑️</button>
+        </div>`
+      ).join('');
+    }
+
+    /* ============================================================
+       상세 패널에서 결과물 삭제 — 패널도 같이 닫기
+    ============================================================ */
+    function deleteCreationFromDetail() {
+      if (!confirm('이 결과물을 삭제할까요?')) return;
+      data.creations = data.creations.filter(c => c.id !== currentDetailId);
+      saveData();
+      closeDetailPanel();
+      renderCreationGrid();
+      updateCounts();
+      showToast('삭제됐어요');
     }
 
     /* ============================================================
