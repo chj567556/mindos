@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Empire — MIND OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+  <style>
+    /* ── 기본 리셋 ── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      background: #fffbf0;  /* Empire 황금/앰버 계열 배경 */
+      overflow-x: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── 페이지 진입 애니메이션 — 아래에서 위로 스르륵 올라오는 효과 ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    body { animation: fadeUp .35s cubic-bezier(.4, 0, .2, 1); }
+
+    /* ── 배경 blob — 황금/앰버/주황 계열 동동 떠다니는 빛 덩어리 ── */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(72px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.55;
+    }
+    /* blob 3개 — 각기 다른 색과 위치로 입체감 표현 */
+    .b1 { width: 420px; height: 420px; background: #fcd34d; top: -100px;   left: -80px;  animation: bm1 10s ease-in-out infinite; }
+    .b2 { width: 340px; height: 340px; background: #fb923c; top: 40px;     right: -70px; animation: bm2 13s ease-in-out infinite; }
+    .b3 { width: 300px; height: 300px; background: #fde68a; bottom: -70px; left: 28%;    animation: bm3 11s ease-in-out infinite; }
+    @keyframes bm1 { 0%,100% { transform: translate(0,0) scale(1);   } 50% { transform: translate(20px,25px) scale(1.05); } }
+    @keyframes bm2 { 0%,100% { transform: translate(0,0) scale(1);   } 50% { transform: translate(-18px,20px) scale(0.97); } }
+    @keyframes bm3 { 0%,100% { transform: translate(0,0) scale(1);   } 50% { transform: translate(15px,-20px) scale(1.03); } }
+
+    /* ── 뒤로가기 버튼 — MIND OS 메인으로 돌아가기 ── */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(251,191,36,0.45);  /* 앰버 테두리 */
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 22px;
+      transition: all .2s;
+      color: #92400e;  /* 짙은 앰버 텍스트 */
+      font-family: 'DM Sans', sans-serif;
+    }
+    .back-btn:hover { background: rgba(255,255,255,.95); transform: translateX(-3px); }
+
+    /* ── 페이지 콘텐츠 영역 ── */
+    .sub-page-wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      width: 100%;
+      padding: 28px 14px 40px;
+    }
+
+    /* ── 헤더 ── */
+    .sub-header { margin-bottom: 30px; }
+
+    /* 배지 — EMPIRE 라벨 */
+    .sub-badge-el {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 3px 13px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      font-weight: 500;
+      background: #fef3c7;       /* 연한 황금 배경 */
+      color: #92400e;            /* 짙은 앰버 글씨 */
+      border: 1px solid #fcd34d; /* 황금 테두리 */
+    }
+
+    /* 제목 — 황금 그라디언트 텍스트 */
+    .sub-h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(24px, 5vw, 34px);
+      font-weight: 600;
+      font-style: italic;
+      background: linear-gradient(135deg, #d97706, #92400e);  /* 황금 → 짙은 앰버 */
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* 부제 설명 */
+    .sub-desc {
+      font-size: 13.5px;
+      color: #78604a;
+      line-height: 1.72;
+      margin-top: 8px;
+      max-width: 540px;
+    }
+
+    /* ── 카테고리 카드 그리드 — 3개짜리 한 줄 ── */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      width: 100%;
+    }
+
+    /* ── 카테고리 카드 — 유리(glassmorphism) 효과 ── */
+    .cat-card {
+      background: rgba(255, 255, 255, .84);
+      backdrop-filter: blur(16px);
+      border: 1.5px solid rgba(255, 255, 255, .95);
+      border-radius: 22px;
+      padding: 24px 20px 20px;
+      cursor: pointer;
+      transition: all .25s cubic-bezier(.4, 0, .2, 1);
+      box-shadow: 0 4px 18px rgba(217, 119, 6, 0.08);  /* 앰버 그림자 */
+      position: relative;
+      overflow: hidden;
+    }
+    .cat-card:hover { transform: translateY(-5px); box-shadow: 0 12px 30px rgba(217, 119, 6, 0.16); }
+
+    /* 잠긴 카드 (취업) — 흐릿하게 표시해서 "아직 준비 중" 느낌 */
+    .cat-card.locked {
+      opacity: 0.55;
+      cursor: not-allowed;
+      filter: grayscale(30%);
+    }
+    .cat-card.locked:hover { transform: none; box-shadow: 0 4px 18px rgba(217, 119, 6, 0.08); }
+
+    /* 카드 이모지 */
+    .cat-emoji { font-size: 30px; margin-bottom: 12px; display: block; }
+
+    /* 카드 제목 */
+    .cat-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 17px;
+      font-weight: 600;
+      color: #1c0a00;
+      margin-bottom: 4px;
+    }
+
+    /* 카드 설명 힌트 */
+    .cat-hint { font-size: 12px; color: #78604a; line-height: 1.6; }
+
+    /* 카드 우하단 화살표 — hover 시 나타남 */
+    .cat-arrow {
+      position: absolute;
+      bottom: 14px;
+      right: 16px;
+      font-size: 14px;
+      opacity: 0.3;
+      transition: opacity .2s, transform .2s;
+      color: #d97706;  /* 앰버 화살표 */
+    }
+    .cat-card:hover .cat-arrow { opacity: .8; transform: translateX(3px); }
+
+    /* 상태 배지 — "프로그래밍 예정" 같은 안내 표시 */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9.5px;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 8px;
+      margin-top: 8px;
+      font-weight: 500;
+    }
+    /* 활성 배지 — 황금 계열 */
+    .status-badge.active {
+      background: #fef3c7;
+      color: #d97706;
+      border: 1px solid #fcd34d;
+    }
+    /* 잠긴 배지 — 회색 계열 */
+    .status-badge.locked-badge {
+      background: #f3f4f6;
+      color: #9ca3af;
+      border: 1px solid #e5e7eb;
+    }
+
+    /* ── 토스트 알림 — 화면 아래에 뜨는 팝업 메시지 ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(28, 10, 0, .92);  /* 짙은 앰버 어두운 배경 */
+      backdrop-filter: blur(14px);
+      color: white;
+      padding: 13px 22px;
+      border-radius: 18px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transition: all .3s cubic-bezier(.4, 0, .2, 1);
+      pointer-events: none;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <!-- 배경 blob — 황금빛 분위기 연출 -->
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <!-- 토스트 알림 컨테이너 -->
+  <div id="toast"></div>
+
+  <div class="sub-page-wrap">
+
+    <!-- MIND OS 메인으로 돌아가기 버튼 -->
+    <button class="back-btn" onclick="location.href='mind_os.html'">← MIND OS</button>
+
+    <!-- 헤더 영역 -->
+    <div class="sub-header">
+      <div class="sub-badge-el">🏰 Projects & Goals</div>
+      <div class="sub-h2">Empire</div>
+      <div class="sub-desc">나의 제국을 쌓아가는 공간이에요. 창업, 크리에이터, 취업 — 각 분야의 목표와 프로젝트를 관리해요.</div>
+    </div>
+
+    <!-- 카테고리 카드 3종 -->
+    <div class="cat-grid">
+
+      <!-- 창업 카드 — 아직 세부 페이지 없으므로 comingSoon 연결 -->
+      <div class="cat-card" onclick="comingSoon('창업')" style="border-top: 4px solid #fcd34d;">
+        <span class="cat-emoji">🚀</span>
+        <div class="cat-name">창업</div>
+        <div class="cat-hint">아이디어 · 사업 계획<br>마일스톤 · 진행 상황</div>
+        <div class="status-badge active">🔨 프로그래밍 예정</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+      <!-- 크리에이터 카드 — 아직 세부 페이지 없으므로 comingSoon 연결 -->
+      <div class="cat-card" onclick="comingSoon('크리에이터')" style="border-top: 4px solid #fb923c;">
+        <span class="cat-emoji">🎬</span>
+        <div class="cat-name">크리에이터</div>
+        <div class="cat-hint">콘텐츠 기획 · 채널 관리<br>업로드 스케줄 · 성장 목표</div>
+        <div class="status-badge active">🔨 프로그래밍 예정</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+      <!-- 취업 카드 — 복학 후 구현 예정, 잠긴 상태로 표시 -->
+      <div class="cat-card locked" onclick="lockedMsg()" style="border-top: 4px solid #d1d5db;">
+        <span class="cat-emoji">💼</span>
+        <div class="cat-name">취업</div>
+        <div class="cat-hint">포트폴리오 · 자기소개서<br>지원 현황 · 면접 준비</div>
+        <div class="status-badge locked-badge">🔒 복학 후 오픈 예정</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // 아직 구현 안 된 카테고리 클릭 시 → 토스트 메시지 표시
+    // 비유: 공사 중인 건물에 "준비 중" 안내판 걸어두는 것처럼
+    function comingSoon(name) {
+      const t = document.getElementById('toast');
+      t.textContent = `🔨 ${name} — 곧 구현할게요!`;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    // 취업 카드는 잠긴 상태 — 복학 후에 열린다는 안내 메시지
+    function lockedMsg() {
+      const t = document.getElementById('toast');
+      t.textContent = '🔒 취업 섹션은 복학 후 오픈 예정이에요!';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2400);
+    }
+  </script>
+
+</body>
+</html>
