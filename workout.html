@@ -376,7 +376,8 @@
       bodyWeight: bwEl ? bwEl.value : (_w.bodyWeight || '75'),
       loggedMuscles: Array.from(loggedMuscles),
       deletedDefaultIds,  // 삭제한 기본 아이템 ID 목록도 함께 저장
-      shopVersion: 2      // 상점 버전 — 가격 변경 시 버전 올리면 자동 리셋
+      shopVersion: 2,     // 상점 버전 — 가격 변경 시 버전 올리면 자동 리셋
+      coinNerfV1: true    // 근력 코인 0.75배 너프 마이그레이션 완료 플래그
     };
     localStorage.setItem('mindos_workout', JSON.stringify(data));
     db.collection('mindos').doc('workout').set(data).catch(e => console.error('Firebase 저장 실패:', e));
@@ -534,7 +535,9 @@
     const muscle=MUSCLES.find(m=>m.id===activeMuscle);let totalVol=0,totalReps=0,cardioMin=0,details=[];
     if(muscle.isCardio){sets[muscle.id]['crunch'].forEach(s=>{totalReps+=parseFloat(s.reps)||0;});if(totalReps>0)details.push(`⚡크런치 ${totalReps}개`);const sm=parseFloat(cardioData.stairmaster.min)||0,tm=parseFloat(cardioData.treadmill.min)||0,rm=parseFloat(cardioData.running.min)||0;cardioMin=sm+tm+rm;if(sm>0)details.push(`🪜${sm}분`);if(tm>0)details.push(`🚶${tm}분`);if(rm>0)details.push(`🏃${rm}분`);if(totalReps===0&&cardioMin===0){showToast('😅','기록 없음!','횟수나 시간을 입력해주세요');return;}}
     else{muscle.exercises.forEach(ex=>{let ev=0,er=0;sets[muscle.id][ex.id].forEach(s=>{ev+=ex.isBW?0:parseW(s.weight,ex.unit)*(parseFloat(s.reps)||0);er+=parseFloat(s.reps)||0;});if(ev>0||er>0){totalVol+=ev;totalReps+=er;const nm=ex.name==='_TOGGLE_'?(shoulderChoice==='ohp'?'오버헤드':'숄더프레스'):ex.name;details.push(`${ex.emoji}${nm} ${sets[muscle.id][ex.id].length}세트`);}});if(totalVol===0&&totalReps===0){showToast('😅','기록 없음!','중량과 횟수를 입력해주세요');return;}}
-    const earned=volToCoins(totalVol,totalReps,cardioMin);
+    // 근력운동은 0.75배 너프 적용 (유산소는 그대로)
+    const rawEarned=volToCoins(totalVol,totalReps,cardioMin);
+    const earned=muscle.isCardio ? rawEarned : Math.round(rawEarned*0.75);
     coins+=earned;loggedMuscles.add(activeMuscle);
     const now=new Date(),ts=`${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
     history.unshift({muscleId:activeMuscle,muscle:muscle.name,emoji:muscle.emoji,vol:totalVol,earned,details:details.join(', '),time:ts});
@@ -678,6 +681,23 @@
     history           = _w.history           || [];
     coins             = _w.coins             || 0;
     purchases         = _w.purchases         || [];
+
+    // ── 근력 코인 너프 마이그레이션 (coinNerfV1 플래그 없으면 한 번만 실행) ──
+    // 이전에 쌓인 코인과 기록된 earned를 모두 0.75배로 줄임
+    if (!_w.coinNerfV1) {
+      coins = Math.round(coins * 0.75);
+      history = history.map(h => ({...h, earned: Math.round((h.earned || 0) * 0.75)}));
+      // 마이그레이션 즉시 저장 (다음 로드 때 다시 적용되지 않도록)
+      const bwEl = document.getElementById('bw-inp');
+      const migrData = {
+        coins, history, purchases, shopItems: _w.shopItems || [], liftRecords,
+        shoulderChoice, bodyWeight: bwEl ? bwEl.value : (_w.bodyWeight || '75'),
+        loggedMuscles: Array.from(loggedMuscles), deletedDefaultIds: _w.deletedDefaultIds || [],
+        shopVersion: _w.shopVersion || 2, coinNerfV1: true
+      };
+      localStorage.setItem('mindos_workout', JSON.stringify(migrData));
+      db.collection('mindos').doc('workout').set(migrData).catch(console.error);
+    }
     // 삭제한 기본 아이템 ID 목록 복원
     deletedDefaultIds = _w.deletedDefaultIds || [];
     // 상점 버전 체크 — 버전이 다르면 DEFAULT_SHOP으로 리셋 (가격 업데이트 반영)
