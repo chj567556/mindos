@@ -692,23 +692,25 @@
   <script>
     /* =============================================
        URL 파라미터 읽기
-       university.html에서 ?sub=phys&sem=fa2627 형태로 전달받음
+       university.html에서 ?sub=xxx&sem=yyy&name=과목명&icon=아이콘 형태로 전달받음
+       - sub: 과목 ID (고정값 phys/math/code 또는 동적 sub_타임스탬프)
+       - sem: 학기 ID
+       - name: 과목 이름 (university에서 직접 전달 — SUBJECT_INFO 테이블 불필요)
+       - icon: 과목 아이콘
     ============================================= */
     const params    = new URLSearchParams(location.search);
-    const subjectId = params.get('sub');  // 'phys' | 'math' | 'code'
-    const semId     = params.get('sem');  // 'fa2627' 등
+    const subjectId = params.get('sub');   // 과목 ID
+    const semId     = params.get('sem');   // 학기 ID
 
-    // 과목별 이름 + 아이콘 테이블
-    const SUBJECT_INFO = {
-      phys: { name: 'Engineering Physics',     icon: '⚛️' },
-      math: { name: 'Engineering Mathematics', icon: '📐' },
-      code: { name: 'Coding with C & Python',  icon: '💻' },
-    };
+    // URL 파라미터로 전달된 이름/아이콘 (없으면 기본값)
+    // decodeURIComponent: URL 인코딩된 한글/특수문자를 원래 문자로 복원
+    const subjectName = params.get('name') ? decodeURIComponent(params.get('name')) : '과목';
+    const subjectIcon = params.get('icon') ? decodeURIComponent(params.get('icon')) : '📖';
 
     // 전역 스트릭 키 — 어떤 과목이든 공부하면 같은 카운터가 올라감
     const STREAK_KEY = 'mindos_academy_streak';
 
-    // 코딩 과목 여부
+    // 코딩 과목 여부 (C/Python 트랙 탭을 보여줄지 결정)
     const isCoding = (subjectId === 'code');
 
     /* =============================================
@@ -1494,7 +1496,9 @@
        페이지 초기화
     ============================================= */
     async function init() {
-      if (!subjectId || !semId || !SUBJECT_INFO[subjectId]) {
+      // subjectId와 semId가 없으면 잘못된 접근 — SUBJECT_INFO 테이블 검사는 제거
+      // (university.html에서 동적으로 만든 과목도 올 수 있으므로 ID 검사 불필요)
+      if (!subjectId || !semId) {
         document.body.innerHTML = `
           <div style="padding:40px;color:#fff;font-family:'DM Sans',sans-serif">
             잘못된 접근이에요.
@@ -1502,10 +1506,10 @@
           </div>`;
         return;
       }
-      const info = SUBJECT_INFO[subjectId];
-      document.getElementById('subjectIcon').textContent = info.icon;
-      document.getElementById('subjectName').textContent = info.name;
-      document.title = info.name + ' — MIND OS';
+      // URL 파라미터로 받은 이름/아이콘을 헤더에 표시
+      document.getElementById('subjectIcon').textContent = subjectIcon;
+      document.getElementById('subjectName').textContent = subjectName;
+      document.title = subjectName + ' — MIND OS';
       if (isCoding) document.getElementById('trackTabs').style.display = 'flex';
       currentData = await loadData(currentTrack);
       renderGamification();
