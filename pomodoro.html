@@ -538,6 +538,19 @@
     // ── 페이지 로드 시 통계 표시 ──
     renderStats();
 
+    // ── 자정 넘기면 자동 날짜 초기화 ──
+    // 비유: 경비원이 1분마다 시계 확인하다가 날짜 바뀌면 출석부를 새로 꺼내는 것
+    setInterval(() => {
+      const newKey = new Date().toISOString().slice(0, 10);
+      if (newKey !== todayKey) {
+        todayKey = newKey;       // 날짜 업데이트
+        stats = loadStats();     // 오늘 통계 다시 로드 (날짜 달라서 자동 리셋)
+        sessionCount = 0;        // 세션 카운트도 초기화
+        renderStats();           // 화면에 반영
+        updateSessionDots();
+      }
+    }, 60 * 1000); // 1분마다 체크
+
     // ────────────────────────────────
     //  타이머 상태 저장 / 복원
     //  다른 페이지로 이탈했다가 돌아와도 타이머가 이어지도록
