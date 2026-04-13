@@ -190,7 +190,7 @@
     .s-price{display:inline-flex;align-items:center;gap:3px;padding:4px 10px;border-radius:10px;font-size:12px;font-weight:700;}
     .afford-badge{position:absolute;top:7px;right:7px;font-size:7.5px;padding:2px 5px;border-radius:6px;font-weight:700;background:#dcfce7;color:#166534;}
     .cant-badge{position:absolute;top:7px;right:7px;font-size:7.5px;padding:2px 5px;border-radius:6px;font-weight:700;background:#f1f5f9;color:#94a3b8;}
-    .diff-badge{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:7.5px;padding:2px 6px;border-radius:6px;font-weight:700;white-space:nowrap;}
+    /* diff-badge 제거됨 */
     .shop-del-btn{position:absolute;top:7px;left:7px;font-size:9px;padding:2px 5px;border-radius:6px;font-weight:700;background:#fef2f2;color:#fca5a5;border:none;cursor:pointer;display:none;}
     .edit-mode .shop-del-btn{display:block;}
     .p-item{display:flex;align-items:center;gap:9px;padding:9px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:11px;margin-bottom:6px;}
@@ -602,7 +602,6 @@
         <div class="s-info">${item.sugar?`당류 ${item.sugar}g · 지방 ${item.fat}g`:''}</div>
         <div class="s-warn">${warns.join(' ')}</div>
         ${editMode?`<div style="display:flex;align-items:center;gap:4px;justify-content:center"><button onclick="changePrice('${item.id}',-5);event.stopPropagation()" style="padding:2px 8px;border:1px solid #e5e7eb;border-radius:6px;background:white;cursor:pointer;font-size:12px">-5</button><div class="s-price" style="background:${item.priceBg};color:${item.priceColor}">🪙 ${item.price}</div><button onclick="changePrice('${item.id}',5);event.stopPropagation()" style="padding:2px 8px;border:1px solid #e5e7eb;border-radius:6px;background:white;cursor:pointer;font-size:12px">+5</button></div>`:`<div class="s-price" style="background:${ok?item.priceBg:'#f3f4f6'};color:${ok?item.priceColor:'#9ca3af'}">🪙 ${item.price}</div>`}
-        ${!editMode?`<div class="diff-badge" style="background:${item.diffBg||'#f3f4f6'};color:${item.diffColor||'#9ca3af'}">${item.diff||''}</div>`:''}
       </div>`;
     }).join('');
     if(!editMode)document.querySelectorAll('.shop-item').forEach((el,i)=>{const item=sorted[i];if(item)el.onclick=()=>purchase(item.id);});
@@ -649,7 +648,7 @@
     if(!name){showToast('⚠️','이름을 입력해주세요','');closeModal();return;}
     if(!price||price<5){showToast('⚠️','가격을 입력해주세요','최소 5코인');closeModal();return;}
     const cc=CAT_COLORS[selCat]||CAT_COLORS.other;
-    shopItems.push({id:'custom_'+Date.now(),emoji:selEmoji,name,brand,kcal,sugar:0,fat:0,sodium:0,price,cat:selCat,bar:cc.bar,priceBg:cc.priceBg,priceColor:cc.priceColor,diff:'✨커스텀',diffBg:'#ede9fe',diffColor:'#7c3aed',custom:true});
+    shopItems.push({id:'custom_'+Date.now(),emoji:selEmoji,name,brand,kcal,sugar:0,fat:0,sodium:0,price,cat:selCat,bar:cc.bar,priceBg:cc.priceBg,priceColor:cc.priceColor,custom:true});
     saveWorkout();  // 커스텀 음식 추가 후 저장
     closeModal();renderFilterTabs();renderShop(currentFilter);renderGoals();
     showToast(selEmoji,`${name} 추가 완료!`,`🪙 ${price}코인 · ${kcal}kcal`);
@@ -681,14 +680,19 @@
       const snap = await db.collection('mindos').doc('workout').get();
       if (snap.exists) {
         const fsData = snap.data();
-        if ((fsData._savedAt || 0) >= localTime) {
-          // Firestore가 더 최신이거나 같으면 → Firestore 사용 + localStorage 업데이트
-          // _savedAt이 없는 기존 데이터(둘 다 0)일 때도 Firestore를 우선 → PC 저장값 반영
+        const fsTime = fsData._savedAt || 0;
+        if (fsTime > localTime) {
+          // Firestore가 명확히 더 최신 (_savedAt 타임스탬프가 더 큼) → Firestore 사용
           _w = fsData;
           localStorage.setItem('mindos_workout', JSON.stringify(_w));
-        } else {
-          // localStorage가 확실히 더 최신 (_savedAt이 Firestore보다 큼) → localStorage 사용
-          if (localData) _w = localData;
+        } else if (localData) {
+          // localStorage가 더 최신이거나, 둘 다 타임스탬프 없음 → localStorage 유지
+          // 그리고 localStorage 데이터를 Firestore에도 올려서 동기화
+          _w = localData;
+          db.collection('mindos').doc('workout').set(_w).catch(console.error);
+        } else if (snap.exists) {
+          // localStorage가 아예 없으면 Firestore라도 사용
+          _w = fsData;
         }
       } else {
         // Firestore에 아무것도 없으면 localStorage 사용
