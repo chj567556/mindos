@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>경제 학습 — Capital</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyBC_aeuuKXoJIodrmfeQ52bvWpzcZMrtPM",
+      authDomain: "mind-os-b23a5.firebaseapp.com",
+      projectId: "mind-os-b23a5",
+      storageBucket: "mind-os-b23a5.firebasestorage.app",
+      messagingSenderId: "88544003760",
+      appId: "1:88544003760:web:58af8d47183d2e259d9d75"
+    });
+    const db = firebase.firestore();
+  </script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{
+      font-family:'DM Sans',sans-serif;
+      min-height:100vh;
+      background:#f0fdf4;
+      overflow-x:hidden;
+      color:#052e16;
+    }
+    @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    body{animation:fadeUp .35s cubic-bezier(.4,0,.2,1);}
+
+    .blob{position:fixed;border-radius:50%;filter:blur(72px);pointer-events:none;z-index:0;opacity:0.4;}
+    .b1{width:400px;height:400px;background:#a7f3d0;top:-90px;left:-70px;animation:bm1 11s ease-in-out infinite;}
+    .b2{width:320px;height:320px;background:#99f6e4;top:20px;right:-60px;animation:bm2 14s ease-in-out infinite;}
+    .b3{width:280px;height:280px;background:#fde68a;bottom:-60px;left:35%;animation:bm3 12s ease-in-out infinite;}
+    @keyframes bm1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(20px,25px) scale(1.06)}}
+    @keyframes bm2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-16px,20px) scale(0.97)}}
+    @keyframes bm3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(14px,-20px) scale(1.04)}}
+
+    .page-wrap{position:relative;z-index:1;max-width:860px;width:100%;margin:0 auto;padding:20px 14px 100px;}
+
+    .back-btn{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:7px 16px;background:rgba(255,255,255,.82);backdrop-filter:blur(10px);
+      border:1px solid rgba(110,231,183,.5);border-radius:20px;
+      font-size:12px;font-weight:500;cursor:pointer;margin-bottom:20px;
+      transition:all .2s;color:#065f46;font-family:'DM Sans',sans-serif;
+    }
+    .back-btn:hover{background:rgba(255,255,255,.95);transform:translateX(-3px);}
+
+    .page-badge{display:inline-block;background:#d1fae5;border:1px solid #6ee7b7;border-radius:12px;padding:3px 12px;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#065f46;font-weight:500;margin-bottom:8px;}
+    .page-title{font-family:'Playfair Display',serif;font-size:clamp(22px,5vw,30px);font-weight:600;color:#064e3b;margin-bottom:18px;}
+    .page-title em{font-style:italic;background:linear-gradient(135deg,#059669,#0d9488);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+
+    /* ── 서브탭 (영상 / 기사 / 내 글) ── */
+    .sub-tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+    .sub-tab{
+      display:flex;align-items:center;gap:6px;
+      padding:9px 18px;border-radius:22px;font-size:13px;font-weight:500;
+      cursor:pointer;border:1.5px solid transparent;transition:all .22s;
+      font-family:'DM Sans',sans-serif;min-height:42px;
+    }
+    .sub-tab.active{background:white;border-color:#6ee7b7;color:#065f46;box-shadow:0 3px 14px rgba(5,150,105,.15);}
+    .sub-tab:not(.active){background:rgba(255,255,255,.45);color:#6b7280;}
+    .sub-tab:not(.active):hover{background:rgba(255,255,255,.72);color:#374151;}
+
+    /* 탭 패널 */
+    .tab-panel{display:none;}
+    .tab-panel.active{display:block;}
+
+    /* ── 상태 필터 ── */
+    .status-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+    .status-chip{
+      padding:6px 13px;border-radius:14px;font-size:12px;font-weight:500;
+      border:1.5px solid #d1fae5;background:transparent;color:#065f46;
+      cursor:pointer;transition:all .18s;min-height:34px;
+      font-family:'DM Sans',sans-serif;
+    }
+    .status-chip.active{background:#059669;color:white;border-color:#059669;}
+    .status-chip:hover:not(.active){background:#d1fae5;}
+
+    /* ── 콘텐츠 추가 버튼 (점선) ── */
+    .add-btn{
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      width:100%;padding:12px;margin-bottom:16px;
+      background:rgba(5,150,105,.07);border:2px dashed #6ee7b7;
+      border-radius:16px;color:#059669;font-size:13px;font-weight:600;
+      cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;
+    }
+    .add-btn:hover{background:rgba(5,150,105,.14);border-style:solid;}
+
+    /* ── 영상/기사 카드 ── */
+    .item-card{
+      background:rgba(255,255,255,.86);backdrop-filter:blur(14px);
+      border:1.5px solid rgba(255,255,255,.95);border-radius:18px;
+      margin-bottom:10px;overflow:hidden;
+      box-shadow:0 3px 14px rgba(0,0,0,.06);transition:all .2s;
+    }
+    .item-card:hover{box-shadow:0 6px 22px rgba(0,0,0,.1);}
+
+    /* 카드 헤더 (항상 보임) */
+    .item-header{
+      display:flex;align-items:center;gap:12px;
+      padding:13px 16px;cursor:pointer;min-height:56px;
+    }
+    .item-source-icon{
+      width:36px;height:36px;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:17px;flex-shrink:0;
+    }
+    .src-yt   {background:#fee2e2;}
+    .src-web  {background:#dbeafe;}
+    .src-etc  {background:#f3f4f6;}
+
+    .item-info{flex:1;min-width:0;}
+    .item-title{font-size:13px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .item-meta{font-size:11px;color:#9ca3af;margin-top:2px;}
+
+    /* 상태 아이콘 */
+    .item-status{flex-shrink:0;font-size:16px;}
+
+    /* 펼쳐지는 영역 */
+    .item-body{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1);border-top:0 solid transparent;}
+    .item-body.open{max-height:800px;border-top:1px solid #f0fdf4;}
+    .item-body-inner{padding:14px 16px;}
+
+    /* 유튜브 임베드 (16:9 비율) */
+    .yt-wrap{position:relative;width:100%;padding-top:56.25%;border-radius:12px;overflow:hidden;margin-bottom:12px;background:#000;}
+    .yt-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none;}
+
+    /* 링크 열기 버튼 */
+    .open-link-btn{
+      display:flex;align-items:center;justify-content:center;gap:6px;
+      padding:9px;background:#f0fdf4;border:1.5px solid #6ee7b7;
+      border-radius:10px;color:#065f46;font-size:12px;font-weight:600;
+      text-decoration:none;cursor:pointer;margin-bottom:12px;
+      transition:all .18s;font-family:'DM Sans',sans-serif;
+    }
+    .open-link-btn:hover{background:#d1fae5;}
+
+    /* 상태 변경 버튼 3개 */
+    .status-btns{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+    .status-btn{
+      flex:1;min-width:80px;padding:7px 10px;border-radius:10px;
+      font-size:12px;font-weight:500;border:1.5px solid #d1fae5;
+      background:transparent;color:#6b7280;cursor:pointer;transition:all .18s;
+      min-height:36px;font-family:'DM Sans',sans-serif;
+    }
+    .status-btn.s-inbox   {background:#f0fdf4;border-color:#6ee7b7;color:#065f46;}
+    .status-btn.s-process {background:#fff7ed;border-color:#fb923c;color:#c2410c;}
+    .status-btn.s-done    {background:#f0fdf4;border-color:#4ade80;color:#166534;}
+    .status-btn:hover{border-color:#059669;}
+
+    /* 태그 */
+    .tag-list{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+    .tag{font-size:11px;padding:2px 9px;border-radius:8px;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;}
+
+    /* 메모 텍스트에어리어 */
+    .memo-area{
+      width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:12px;
+      font-size:13px;font-family:'DM Sans',sans-serif;resize:vertical;min-height:72px;
+      background:#f9fafb;color:#111827;transition:border-color .18s;
+    }
+    .memo-area:focus{outline:none;border-color:#6ee7b7;background:white;}
+
+    /* 삭제 버튼 */
+    .btn-del{
+      padding:7px 14px;border-radius:10px;
+      background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);
+      color:#dc2626;font-size:11px;font-weight:500;cursor:pointer;
+      font-family:'DM Sans',sans-serif;transition:all .18s;margin-top:8px;
+    }
+    .btn-del:hover{background:rgba(239,68,68,.18);}
+
+    /* ═══════════════════════════
+       내 글 (노트) 섹션
+    ═══════════════════════════ */
+    .note-card{
+      background:rgba(255,255,255,.88);backdrop-filter:blur(14px);
+      border:1.5px solid rgba(255,255,255,.95);border-radius:20px;
+      margin-bottom:12px;overflow:hidden;
+      box-shadow:0 4px 16px rgba(0,0,0,.07);
+    }
+    .note-header{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px 18px;cursor:pointer;
+    }
+    .note-title-display{font-size:14px;font-weight:700;color:#064e3b;}
+    .note-meta{font-size:11px;color:#9ca3af;margin-top:2px;}
+    .note-arrow{font-size:12px;color:#9ca3af;transition:transform .25s;}
+    .note-arrow.open{transform:rotate(180deg);}
+
+    .note-body{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1);border-top:0 solid transparent;}
+    .note-body.open{max-height:2000px;border-top:1px solid #f0fdf4;}
+    .note-body-inner{padding:16px 18px;}
+
+    /* 노트 제목 인풋 */
+    .note-title-input{
+      width:100%;padding:8px 0;border:none;border-bottom:1.5px solid #e5e7eb;
+      font-size:15px;font-weight:700;color:#064e3b;background:transparent;
+      font-family:'Playfair Display',serif;margin-bottom:14px;
+    }
+    .note-title-input:focus{outline:none;border-bottom-color:#059669;}
+
+    /* 서식 툴바 */
+    .fmt-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+    .fmt-btn{
+      width:32px;height:32px;border-radius:8px;
+      border:1.5px solid #d1fae5;background:#f0fdf4;
+      font-size:13px;font-weight:700;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      color:#065f46;transition:all .15s;font-family:'DM Sans',sans-serif;
+    }
+    .fmt-btn:hover{background:#d1fae5;}
+
+    /* 리치 텍스트 에디터 영역 */
+    .note-editor{
+      min-height:160px;padding:12px 14px;
+      border:1.5px solid #e5e7eb;border-radius:14px;
+      font-size:14px;line-height:1.75;color:#111827;
+      background:#f9fafb;
+    }
+    .note-editor:focus{outline:none;border-color:#6ee7b7;background:white;}
+    .note-editor img{max-width:100%;border-radius:8px;margin:6px 0;}
+
+    /* 이미지 클릭 툴바 */
+    #imgToolbar{
+      position:fixed;background:white;border:1.5px solid #6ee7b7;
+      border-radius:14px;padding:8px 10px;box-shadow:0 8px 28px rgba(0,0,0,.15);
+      z-index:300;opacity:0;pointer-events:none;transition:opacity .18s;
+    }
+    #imgToolbar.visible{opacity:1;pointer-events:all;}
+    .img-tb-row{display:flex;gap:5px;margin-bottom:5px;}
+    .img-tb-row:last-child{margin-bottom:0;}
+    .img-tb-btn{
+      padding:5px 10px;border-radius:8px;font-size:11px;font-weight:600;
+      border:1px solid #d1fae5;background:#f0fdf4;color:#065f46;
+      cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;
+    }
+    .img-tb-btn:hover{background:#d1fae5;}
+
+    .note-save-btn{
+      margin-top:10px;padding:9px 20px;
+      background:linear-gradient(135deg,#059669,#0d9488);
+      color:white;border:none;border-radius:12px;
+      font-size:12px;font-weight:600;cursor:pointer;
+      font-family:'DM Sans',sans-serif;transition:all .2s;
+    }
+    .note-save-btn:hover{opacity:.88;}
+
+    /* 새 글 추가 버튼 */
+    .add-note-btn{
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      width:100%;padding:12px;
+      background:rgba(5,150,105,.07);border:2px dashed #6ee7b7;
+      border-radius:16px;color:#059669;font-size:13px;font-weight:600;
+      cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;
+    }
+    .add-note-btn:hover{background:rgba(5,150,105,.14);border-style:solid;}
+
+    /* 빈 상태 */
+    .empty-state{text-align:center;padding:48px 20px;color:#9ca3af;}
+    .empty-icon{font-size:36px;margin-bottom:12px;}
+    .empty-text{font-size:13px;line-height:1.7;}
+
+    /* ═══════════════════════════
+       추가 모달 (영상/기사 공용)
+    ═══════════════════════════ */
+    .modal-overlay{
+      display:none;position:fixed;inset:0;
+      background:rgba(0,0,0,.38);backdrop-filter:blur(4px);
+      z-index:100;align-items:center;justify-content:center;padding:16px;
+    }
+    .modal-overlay.open{display:flex;}
+    .modal-box{
+      background:white;border-radius:24px;padding:24px 20px;
+      width:100%;max-width:460px;max-height:90vh;overflow-y:auto;
+      box-shadow:0 20px 60px rgba(0,0,0,.2);
+      animation:fadeUp .2s cubic-bezier(.4,0,.2,1);
+    }
+    .modal-title{font-size:16px;font-weight:700;color:#064e3b;margin-bottom:18px;}
+    .form-group{margin-bottom:13px;}
+    .form-label{display:block;font-size:11px;font-weight:600;color:#6b7280;letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px;}
+    .form-input{
+      width:100%;padding:10px 13px;border:1.5px solid #e5e7eb;border-radius:12px;
+      font-size:14px;font-family:'DM Sans',sans-serif;color:#111827;
+      background:#f9fafb;transition:border-color .18s;
+    }
+    .form-input:focus{outline:none;border-color:#6ee7b7;background:white;}
+    .modal-actions{display:flex;gap:10px;margin-top:20px;}
+    .btn-primary{
+      flex:1;padding:11px;background:linear-gradient(135deg,#059669,#0d9488);
+      color:white;border:none;border-radius:13px;font-size:13px;font-weight:600;
+      cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;
+    }
+    .btn-primary:hover{opacity:.88;}
+    .btn-secondary{
+      padding:11px 17px;background:rgba(255,255,255,.7);color:#374151;
+      border:1.5px solid rgba(0,0,0,.12);border-radius:13px;font-size:13px;
+      font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;
+    }
+    .btn-secondary:hover{background:white;}
+
+    /* 토스트 */
+    #toast{
+      position:fixed;bottom:28px;left:50%;
+      transform:translateX(-50%) translateY(20px);
+      background:rgba(4,47,30,.92);backdrop-filter:blur(14px);
+      color:white;padding:12px 22px;border-radius:18px;
+      font-size:13px;font-weight:500;opacity:0;
+      transition:all .3s cubic-bezier(.4,0,.2,1);
+      pointer-events:none;z-index:200;white-space:nowrap;
+    }
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  </style>
+</head>
+<body>
+
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+  <div id="toast"></div>
+
+  <!-- 이미지 클릭 툴바 (노트에서 이미지 선택 시 뜸) -->
+  <div id="imgToolbar">
+    <div class="img-tb-row">
+      <button class="img-tb-btn" onclick="setImgSize('small')">작게</button>
+      <button class="img-tb-btn" onclick="setImgSize('medium')">중간</button>
+      <button class="img-tb-btn" onclick="setImgSize('large')">크게</button>
+      <button class="img-tb-btn" onclick="setImgSize('full')">전체</button>
+    </div>
+    <div class="img-tb-row">
+      <button class="img-tb-btn" onclick="setImgAlign('left')">◀ 왼쪽</button>
+      <button class="img-tb-btn" onclick="setImgAlign('center')">● 가운데</button>
+      <button class="img-tb-btn" onclick="setImgAlign('right')">오른쪽 ▶</button>
+    </div>
+  </div>
+
+  <div class="page-wrap">
+
+    <button class="back-btn" onclick="location.href='capital.html'">← Capital</button>
+    <div class="page-badge">💰 Capital</div>
+    <h1 class="page-title">경제 <em>학습</em></h1>
+
+    <!-- 서브탭 -->
+    <div class="sub-tabs">
+      <button class="sub-tab active" onclick="switchTab('video')">📹 영상</button>
+      <button class="sub-tab"        onclick="switchTab('article')">📰 기사</button>
+      <button class="sub-tab"        onclick="switchTab('note')">📝 내 글</button>
+    </div>
+
+    <!-- ── 영상 탭 ── -->
+    <div id="tab-video" class="tab-panel active">
+      <div class="status-filters" id="videoFilters">
+        <button class="status-chip active" onclick="setVideoFilter('all')">전체</button>
+        <button class="status-chip" onclick="setVideoFilter('inbox')">📥 미처리</button>
+        <button class="status-chip" onclick="setVideoFilter('process')">🔄 소화중</button>
+        <button class="status-chip" onclick="setVideoFilter('done')">✅ 완료</button>
+      </div>
+      <button class="add-btn" onclick="openVideoModal()">+ 영상 추가</button>
+      <div id="videoList"></div>
+    </div>
+
+    <!-- ── 기사 탭 ── -->
+    <div id="tab-article" class="tab-panel">
+      <div class="status-filters" id="articleFilters">
+        <button class="status-chip active" onclick="setArticleFilter('all')">전체</button>
+        <button class="status-chip" onclick="setArticleFilter('inbox')">📥 미처리</button>
+        <button class="status-chip" onclick="setArticleFilter('process')">🔄 소화중</button>
+        <button class="status-chip" onclick="setArticleFilter('done')">✅ 완료</button>
+      </div>
+      <button class="add-btn" onclick="openArticleModal()">+ 기사 추가</button>
+      <div id="articleList"></div>
+    </div>
+
+    <!-- ── 내 글 탭 ── -->
+    <div id="tab-note" class="tab-panel">
+      <div id="noteList"></div>
+      <button class="add-note-btn" onclick="addNote()">+ 새 글 작성</button>
+    </div>
+
+  </div>
+
+  <!-- 영상 추가 모달 -->
+  <div id="videoModal" class="modal-overlay" onclick="closeBg('videoModal',event)">
+    <div class="modal-box">
+      <div class="modal-title">영상 추가</div>
+      <div class="form-group">
+        <label class="form-label">URL (유튜브 자동 인식)</label>
+        <input type="url" id="vUrl" class="form-input" placeholder="https://youtube.com/watch?v=...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">제목</label>
+        <input type="text" id="vTitle" class="form-input" placeholder="영상 제목">
+      </div>
+      <div class="form-group">
+        <label class="form-label">태그 (쉼표로 구분)</label>
+        <input type="text" id="vTags" class="form-input" placeholder="예: 주식, 금리, ETF">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('videoModal')">취소</button>
+        <button class="btn-primary" onclick="saveVideo()">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 기사 추가 모달 -->
+  <div id="articleModal" class="modal-overlay" onclick="closeBg('articleModal',event)">
+    <div class="modal-box">
+      <div class="modal-title">기사 추가</div>
+      <div class="form-group">
+        <label class="form-label">URL</label>
+        <input type="url" id="aUrl" class="form-input" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">제목</label>
+        <input type="text" id="aTitle" class="form-input" placeholder="기사 제목">
+      </div>
+      <div class="form-group">
+        <label class="form-label">출처 (선택)</label>
+        <input type="text" id="aSource" class="form-input" placeholder="예: 조선일보, 한국경제">
+      </div>
+      <div class="form-group">
+        <label class="form-label">태그 (쉼표로 구분)</label>
+        <input type="text" id="aTags" class="form-input" placeholder="예: 환율, 부동산">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('articleModal')">취소</button>
+        <button class="btn-primary" onclick="saveArticle()">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ════════════════════════════════
+       데이터 모델
+    ════════════════════════════════ */
+    let data = {
+      _savedAt: 0,
+      videos:   [],   // { id, url, title, tags[], status, memo }
+      articles: [],   // { id, url, title, source, tags[], status, memo }
+      notes:    [],   // { id, title, content, updatedAt }
+    };
+
+    /* 현재 활성 탭 */
+    let currentTab = 'video';
+    /* 영상/기사 필터 상태 */
+    let videoFilter   = 'all';
+    let articleFilter = 'all';
+    /* 이미지 툴바용 선택 이미지 */
+    let selectedImg   = null;
+
+
+    /* ════════════════════════════════
+       데이터 로드/저장
+    ════════════════════════════════ */
+    async function loadData() {
+      const local = localStorage.getItem('mindos_capital_study');
+      let localData=null, localTime=0;
+      if (local) {
+        try { localData=JSON.parse(local); localTime=localData._savedAt||0; } catch(e){}
+      }
+      try {
+        const snap = await db.collection('mindos').doc('capital_study').get();
+        if (snap.exists) {
+          const fs = snap.data();
+          if ((fs._savedAt||0) > localTime) {
+            data = {...data,...fs};
+            localStorage.setItem('mindos_capital_study', JSON.stringify(data));
+            renderAll(); return;
+          }
+        }
+      } catch(e) { console.error('Firestore 로드 실패:',e); }
+      if (localData) data = {...data,...localData};
+      renderAll();
+    }
+
+    function saveData() {
+      data._savedAt = Date.now();
+      localStorage.setItem('mindos_capital_study', JSON.stringify(data));
+      db.collection('mindos').doc('capital_study').set(data)
+        .catch(e=>console.error('Firestore 저장 실패:',e));
+    }
+
+
+    /* ════════════════════════════════
+       탭 전환
+    ════════════════════════════════ */
+    function switchTab(tab) {
+      currentTab = tab;
+      const tabs = ['video','article','note'];
+      document.querySelectorAll('.sub-tab').forEach((el,i)=>{
+        el.classList.toggle('active', tabs[i]===tab);
+      });
+      document.querySelectorAll('.tab-panel').forEach(el=>el.classList.remove('active'));
+      document.getElementById('tab-'+tab).classList.add('active');
+    }
+
+    function renderAll() {
+      renderVideos();
+      renderArticles();
+      renderNotes();
+    }
+
+
+    /* ════════════════════════════════
+       유튜브 URL → embed URL 변환
+       예: youtube.com/watch?v=ABC → youtube.com/embed/ABC
+    ════════════════════════════════ */
+    function toYtEmbed(url) {
+      if (!url) return null;
+      /* youtu.be/ID 형식 */
+      const short = url.match(/youtu\.be\/([^?&]+)/);
+      if (short) return `https://www.youtube.com/embed/${short[1]}`;
+      /* youtube.com/watch?v=ID 형식 */
+      const long = url.match(/[?&]v=([^&]+)/);
+      if (long) return `https://www.youtube.com/embed/${long[1]}`;
+      return null;
+    }
+    function isYoutube(url) { return /youtube\.com|youtu\.be/.test(url||''); }
+
+    /* 상태별 이모지 */
+    const STATUS_EMOJI = { inbox:'📥', process:'🔄', done:'✅' };
+    const STATUS_LABEL = { inbox:'미처리', process:'소화중', done:'완료' };
+
+
+    /* ════════════════════════════════
+       영상 섹션
+    ════════════════════════════════ */
+    function setVideoFilter(f) {
+      videoFilter = f;
+      document.querySelectorAll('#videoFilters .status-chip').forEach((el,i)=>{
+        el.classList.toggle('active', ['all','inbox','process','done'][i]===f);
+      });
+      renderVideos();
+    }
+
+    function renderVideos() {
+      const el = document.getElementById('videoList');
+      const list = (data.videos||[]).filter(v=>
+        videoFilter==='all' || v.status===videoFilter
+      ).slice().reverse(); /* 최신이 위 */
+
+      if (!list.length) {
+        el.innerHTML=`<div class="empty-state"><div class="empty-icon">📹</div><div class="empty-text">영상이 없어요<br>경제 유튜브를 스크랩해보세요</div></div>`;
+        return;
+      }
+      el.innerHTML = list.map(v=>videoCardHTML(v)).join('');
+    }
+
+    function videoCardHTML(v) {
+      const embedUrl = toYtEmbed(v.url);
+      const isYt     = isYoutube(v.url);
+      const tags     = (v.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('');
+      const status   = v.status||'inbox';
+
+      return `
+        <div class="item-card" id="vc-${v.id}">
+          <div class="item-header" onclick="toggleItem('vc-body-${v.id}')">
+            <div class="item-source-icon ${isYt?'src-yt':'src-web'}">${isYt?'▶':'🌐'}</div>
+            <div class="item-info">
+              <div class="item-title">${v.title||v.url||'제목 없음'}</div>
+              <div class="item-meta">${(v.tags||[]).join(' · ')||'태그 없음'}</div>
+            </div>
+            <div class="item-status">${STATUS_EMOJI[status]||'📥'}</div>
+          </div>
+          <div class="item-body" id="vc-body-${v.id}">
+            <div class="item-body-inner">
+              ${embedUrl ? `<div class="yt-wrap"><iframe src="${embedUrl}" allowfullscreen></iframe></div>` :
+                v.url ? `<a class="open-link-btn" href="${v.url}" target="_blank">🔗 원본 링크 열기</a>` : ''}
+              <div class="tag-list">${tags}</div>
+              <div class="status-btns">
+                <button class="status-btn ${status==='inbox'?'s-inbox':''}"   onclick="setVideoStatus('${v.id}','inbox')">📥 미처리</button>
+                <button class="status-btn ${status==='process'?'s-process':''}" onclick="setVideoStatus('${v.id}','process')">🔄 소화중</button>
+                <button class="status-btn ${status==='done'?'s-done':''}"    onclick="setVideoStatus('${v.id}','done')">✅ 완료</button>
+              </div>
+              <textarea class="memo-area" placeholder="메모..."
+                onblur="saveVideoMemo('${v.id}',this.value)">${v.memo||''}</textarea>
+              <br>
+              <button class="btn-del" onclick="deleteVideo('${v.id}')">삭제</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function openVideoModal() {
+      ['vUrl','vTitle','vTags'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('videoModal').classList.add('open');
+    }
+    function saveVideo() {
+      const url   = document.getElementById('vUrl').value.trim();
+      const title = document.getElementById('vTitle').value.trim() || url;
+      const tags  = document.getElementById('vTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+      if (!url&&!title) { showToast('URL 또는 제목을 입력해주세요'); return; }
+      data.videos = data.videos||[];
+      data.videos.push({ id:Date.now().toString(), url, title, tags, status:'inbox', memo:'' });
+      saveData(); closeModal('videoModal'); renderVideos();
+      showToast('영상을 추가했어요 ✓');
+    }
+    function setVideoStatus(id, status) {
+      const v = (data.videos||[]).find(x=>x.id===id);
+      if (v) { v.status=status; saveData(); renderVideos(); }
+    }
+    function saveVideoMemo(id, memo) {
+      const v = (data.videos||[]).find(x=>x.id===id);
+      if (v && v.memo!==memo) { v.memo=memo; saveData(); }
+    }
+    function deleteVideo(id) {
+      if (!confirm('영상을 삭제할까요?')) return;
+      data.videos = (data.videos||[]).filter(x=>x.id!==id);
+      saveData(); renderVideos(); showToast('영상을 삭제했어요');
+    }
+
+
+    /* ════════════════════════════════
+       기사 섹션
+    ════════════════════════════════ */
+    function setArticleFilter(f) {
+      articleFilter = f;
+      document.querySelectorAll('#articleFilters .status-chip').forEach((el,i)=>{
+        el.classList.toggle('active', ['all','inbox','process','done'][i]===f);
+      });
+      renderArticles();
+    }
+
+    function renderArticles() {
+      const el = document.getElementById('articleList');
+      const list = (data.articles||[]).filter(a=>
+        articleFilter==='all' || a.status===articleFilter
+      ).slice().reverse();
+
+      if (!list.length) {
+        el.innerHTML=`<div class="empty-state"><div class="empty-icon">📰</div><div class="empty-text">기사가 없어요<br>읽을 기사를 스크랩해보세요</div></div>`;
+        return;
+      }
+      el.innerHTML = list.map(a=>articleCardHTML(a)).join('');
+    }
+
+    function articleCardHTML(a) {
+      const tags   = (a.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('');
+      const status = a.status||'inbox';
+      return `
+        <div class="item-card" id="ac-${a.id}">
+          <div class="item-header" onclick="toggleItem('ac-body-${a.id}')">
+            <div class="item-source-icon src-web">📰</div>
+            <div class="item-info">
+              <div class="item-title">${a.title||a.url||'제목 없음'}</div>
+              <div class="item-meta">${a.source||''} ${(a.tags||[]).join(' · ')}</div>
+            </div>
+            <div class="item-status">${STATUS_EMOJI[status]||'📥'}</div>
+          </div>
+          <div class="item-body" id="ac-body-${a.id}">
+            <div class="item-body-inner">
+              ${a.url?`<a class="open-link-btn" href="${a.url}" target="_blank">🔗 기사 원문 열기</a>`:''}
+              <div class="tag-list">${tags}</div>
+              <div class="status-btns">
+                <button class="status-btn ${status==='inbox'?'s-inbox':''}"    onclick="setArticleStatus('${a.id}','inbox')">📥 미처리</button>
+                <button class="status-btn ${status==='process'?'s-process':''}" onclick="setArticleStatus('${a.id}','process')">🔄 소화중</button>
+                <button class="status-btn ${status==='done'?'s-done':''}"     onclick="setArticleStatus('${a.id}','done')">✅ 완료</button>
+              </div>
+              <textarea class="memo-area" placeholder="요약 메모..."
+                onblur="saveArticleMemo('${a.id}',this.value)">${a.memo||''}</textarea>
+              <br>
+              <button class="btn-del" onclick="deleteArticle('${a.id}')">삭제</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function openArticleModal() {
+      ['aUrl','aTitle','aSource','aTags'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('articleModal').classList.add('open');
+    }
+    function saveArticle() {
+      const url    = document.getElementById('aUrl').value.trim();
+      const title  = document.getElementById('aTitle').value.trim() || url;
+      const source = document.getElementById('aSource').value.trim();
+      const tags   = document.getElementById('aTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+      if (!url&&!title) { showToast('URL 또는 제목을 입력해주세요'); return; }
+      data.articles = data.articles||[];
+      data.articles.push({ id:Date.now().toString(), url, title, source, tags, status:'inbox', memo:'' });
+      saveData(); closeModal('articleModal'); renderArticles();
+      showToast('기사를 추가했어요 ✓');
+    }
+    function setArticleStatus(id, status) {
+      const a = (data.articles||[]).find(x=>x.id===id);
+      if (a) { a.status=status; saveData(); renderArticles(); }
+    }
+    function saveArticleMemo(id, memo) {
+      const a = (data.articles||[]).find(x=>x.id===id);
+      if (a && a.memo!==memo) { a.memo=memo; saveData(); }
+    }
+    function deleteArticle(id) {
+      if (!confirm('기사를 삭제할까요?')) return;
+      data.articles = (data.articles||[]).filter(x=>x.id!==id);
+      saveData(); renderArticles(); showToast('기사를 삭제했어요');
+    }
+
+
+    /* ════════════════════════════════
+       내 글 (노트) 섹션
+       제목 + contenteditable 에디터
+       이미지 Ctrl+V 붙여넣기 지원
+    ════════════════════════════════ */
+    function renderNotes() {
+      const el = document.getElementById('noteList');
+      if (!(data.notes||[]).length) {
+        el.innerHTML=`<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">아직 작성한 글이 없어요<br>경제 개념이나 인사이트를 정리해보세요</div></div>`;
+        return;
+      }
+      el.innerHTML = (data.notes||[]).slice().reverse().map(n=>noteCardHTML(n)).join('');
+      /* 렌더링 후 각 에디터에 이벤트 등록 */
+      (data.notes||[]).forEach(n=>bindNoteEvents(n.id));
+    }
+
+    function noteCardHTML(n) {
+      const d = n.updatedAt ? new Date(n.updatedAt).toLocaleDateString('ko-KR') : '';
+      return `
+        <div class="note-card" id="note-${n.id}">
+          <div class="note-header" onclick="toggleNote('${n.id}')">
+            <div>
+              <div class="note-title-display">${n.title||'제목 없음'}</div>
+              <div class="note-meta">${d}</div>
+            </div>
+            <span class="note-arrow" id="note-arrow-${n.id}">▼</span>
+          </div>
+          <div class="note-body" id="note-body-${n.id}">
+            <div class="note-body-inner">
+              <!-- 제목 인풋 -->
+              <input class="note-title-input" id="ntitle-${n.id}"
+                value="${(n.title||'').replace(/"/g,'&quot;')}"
+                placeholder="제목을 입력하세요">
+              <!-- 서식 툴바 -->
+              <div class="fmt-bar">
+                <button class="fmt-btn" onclick="fmt('bold')"       title="굵게">B</button>
+                <button class="fmt-btn" onclick="fmt('italic')"     title="기울임"><i>I</i></button>
+                <button class="fmt-btn" onclick="fmt('underline')"  title="밑줄"><u>U</u></button>
+                <button class="fmt-btn" onclick="insertHr()"        title="구분선">—</button>
+              </div>
+              <!-- 리치 텍스트 에디터 -->
+              <div class="note-editor" id="editor-${n.id}"
+                contenteditable="true"
+                data-note-id="${n.id}">${n.content||''}</div>
+              <!-- 저장 버튼 -->
+              <button class="note-save-btn" onclick="saveNote('${n.id}')">저장</button>
+              <button class="btn-del" onclick="deleteNote('${n.id}')">글 삭제</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function toggleNote(id) {
+      const body  = document.getElementById('note-body-'+id);
+      const arrow = document.getElementById('note-arrow-'+id);
+      const isOpen = body.classList.toggle('open');
+      arrow.classList.toggle('open', isOpen);
+      /* 열릴 때 에디터 이벤트 바인딩 */
+      if (isOpen) bindNoteEvents(id);
+    }
+
+    /* 노트 에디터에 붙여넣기/이미지클릭 이벤트 등록 */
+    function bindNoteEvents(id) {
+      const editor = document.getElementById('editor-'+id);
+      if (!editor || editor._bound) return;
+      editor._bound = true;
+
+      /* Ctrl+V 이미지 붙여넣기 — CLAUDE.md 표준 패턴 적용 */
+      editor.addEventListener('paste', function(e) {
+        for (const item of e.clipboardData.items) {
+          if (item.type.startsWith('image/')) {
+            e.preventDefault();
+            const reader = new FileReader();
+            reader.onload = ev => {
+              compressImage(ev.target.result, 1200, 0.8, compressed => {
+                document.execCommand('insertHTML', false,
+                  `<img src="${compressed}" style="max-width:100%;border-radius:8px;margin:6px 0">`);
+                saveNote(id);
+              });
+            };
+            reader.readAsDataURL(item.getAsFile());
+          }
+        }
+      });
+
+      /* 이미지 클릭 시 툴바 표시 */
+      editor.addEventListener('click', function(e) {
+        if (e.target.tagName==='IMG') { selectedImg=e.target; showImgToolbar(e.target); }
+        else hideImgToolbar();
+      });
+    }
+
+    /* 이미지 압축 — CLAUDE.md 표준 패턴 */
+    function compressImage(dataUrl, maxWidth, quality, callback) {
+      const img = new Image();
+      img.onload = function() {
+        let w=img.width, h=img.height;
+        if (w>maxWidth) { h=Math.round(h*maxWidth/w); w=maxWidth; }
+        const canvas = document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        callback(canvas.toDataURL('image/jpeg',quality));
+      };
+      img.src = dataUrl;
+    }
+
+    /* 이미지 툴바 위치 계산 */
+    function showImgToolbar(img) {
+      const tb   = document.getElementById('imgToolbar');
+      const rect = img.getBoundingClientRect();
+      const top  = rect.top>80 ? rect.top-76 : rect.bottom+8;
+      tb.style.top  = top+'px';
+      tb.style.left = rect.left+'px';
+      tb.classList.add('visible');
+    }
+    function hideImgToolbar() {
+      document.getElementById('imgToolbar').classList.remove('visible');
+      selectedImg = null;
+    }
+    function setImgSize(size) {
+      if (!selectedImg) return;
+      const sizes = {small:'200px',medium:'400px',large:'600px',full:'100%'};
+      selectedImg.style.maxWidth = sizes[size];
+      /* 저장은 현재 활성 에디터 찾아서 */
+      const editorId = selectedImg.closest('[data-note-id]')?.dataset.noteId;
+      if (editorId) saveNote(editorId);
+    }
+    function setImgAlign(align) {
+      if (!selectedImg) return;
+      const aligns = {left:{marginLeft:'0',marginRight:'auto'},center:{marginLeft:'auto',marginRight:'auto'},right:{marginLeft:'auto',marginRight:'0'}};
+      selectedImg.style.display='block';
+      Object.assign(selectedImg.style, aligns[align]);
+      const editorId = selectedImg.closest('[data-note-id]')?.dataset.noteId;
+      if (editorId) saveNote(editorId);
+    }
+    /* 툴바 바깥 클릭 시 닫기 */
+    document.addEventListener('click', function(e) {
+      const tb = document.getElementById('imgToolbar');
+      if (!tb.contains(e.target) && e.target.tagName!=='IMG') hideImgToolbar();
+    });
+
+    /* 서식 적용 */
+    function fmt(cmd)    { document.execCommand(cmd,false,null); }
+    function insertHr()  { document.execCommand('insertHTML',false,'<hr style="border:none;border-top:2px solid #d1fae5;margin:12px 0;">'); }
+
+    /* 새 노트 추가 */
+    function addNote() {
+      data.notes = data.notes||[];
+      data.notes.push({ id:Date.now().toString(), title:'새 글', content:'', updatedAt:Date.now() });
+      saveData(); renderNotes();
+      /* 방금 추가된 카드 열기 */
+      const lastId = data.notes[data.notes.length-1].id;
+      setTimeout(()=>toggleNote(lastId), 50);
+    }
+
+    /* 노트 저장 */
+    function saveNote(id) {
+      const note = (data.notes||[]).find(n=>n.id===id);
+      if (!note) return;
+      const titleEl  = document.getElementById('ntitle-'+id);
+      const editorEl = document.getElementById('editor-'+id);
+      if (titleEl)  note.title   = titleEl.value.trim()||'제목 없음';
+      if (editorEl) note.content = editorEl.innerHTML;
+      note.updatedAt = Date.now();
+      saveData();
+      showToast('저장했어요 ✓');
+    }
+
+    /* 노트 삭제 */
+    function deleteNote(id) {
+      if (!confirm('이 글을 삭제할까요?')) return;
+      data.notes = (data.notes||[]).filter(n=>n.id!==id);
+      saveData(); renderNotes(); showToast('글을 삭제했어요');
+    }
+
+
+    /* ════════════════════════════════
+       모달 공통
+    ════════════════════════════════ */
+    function closeBg(modalId, e) {
+      if (e.target===document.getElementById(modalId)) closeModal(modalId);
+    }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    /* 카드 펼치기/접기 공통 */
+    function toggleItem(bodyId) {
+      document.getElementById(bodyId)?.classList.toggle('open');
+    }
+
+    /* 토스트 */
+    let toastTimer=null;
+    function showToast(msg) {
+      const t=document.getElementById('toast');
+      t.textContent=msg; t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer=setTimeout(()=>t.classList.remove('show'),2500);
+    }
+
+    document.addEventListener('DOMContentLoaded', loadData);
+  </script>
+</body>
+</html>
