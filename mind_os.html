@@ -131,6 +131,97 @@
     @keyframes floatDot  { 0%,100%{opacity:.45} 50%{opacity:1} }
     @keyframes spinR     { to{transform:rotate(360deg)} }
     @keyframes spinRR    { to{transform:rotate(-360deg)} }
+
+    /* ── 모바일 카드 레이아웃 ── */
+    /* 폰에서는 SVG 마인드맵 대신 이 레이아웃이 보임 */
+    .mobile-map { display: none; width: 100%; max-width: 480px; }
+
+    /* your space 센터 카드 — 상단에 넓게 */
+    .mob-center {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: blur(14px);
+      border: 1.5px solid #e9d5ff;
+      border-radius: 22px;
+      padding: 18px 20px;
+      margin-bottom: 13px;
+      cursor: pointer;
+      transition: all .22s;
+      box-shadow: 0 4px 20px rgba(168,139,250,0.15);
+      /* 탑 컬러 바 효과: box-shadow 대신 border-top으로 */
+      border-top: 4px solid #c4b5fd;
+    }
+    .mob-center:active { transform: scale(0.98); }
+    .mob-center-avatar {
+      width: 52px; height: 52px;
+      background: #f5f3ff;
+      border: 1.5px solid #e9d5ff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .mob-center-text { flex: 1; }
+    .mob-center-title {
+      font-size: 15px; font-weight: 700;
+      color: #6d28d9; letter-spacing: 1.5px;
+      margin-bottom: 3px;
+    }
+    .mob-center-sub { font-size: 12px; color: #a78bfa; }
+
+    /* 5개 노드 2열 그리드 */
+    .mob-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    /* 마지막 홀수 카드(Buffer)는 가운데 정렬 */
+    .mob-grid .mob-card:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+      max-width: calc(50% - 5px);
+      margin: 0 auto;
+    }
+
+    /* 각 카드 공통 스타일 */
+    .mob-card {
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: blur(14px);
+      border: 1.5px solid #f3f4f6;
+      border-radius: 20px;
+      padding: 16px 14px 14px;
+      cursor: pointer;
+      transition: all .22s;
+      box-shadow: 0 3px 14px rgba(0,0,0,0.07);
+      position: relative;
+      overflow: hidden;
+    }
+    .mob-card:active { transform: scale(0.97); }
+    /* 상단 컬러 바 */
+    .mob-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      border-radius: 20px 20px 0 0;
+      background: var(--card-color);
+    }
+    .mob-card-emoji { font-size: 22px; margin-bottom: 8px; }
+    .mob-card-name {
+      font-size: 13px; font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--card-dark);
+    }
+    .mob-card-desc { font-size: 10.5px; color: #9ca3af; line-height: 1.5; }
+
+    /* PC에서는 모바일 레이아웃 숨기기, 900px 이하에서 SVG 숨기기 */
+    @media (max-width: 900px) {
+      .mindmap-wrap { display: none; }  /* SVG 마인드맵 숨김 */
+      .mobile-map   { display: block; } /* 모바일 카드 레이아웃 표시 */
+      body { justify-content: flex-start; padding-top: 36px; }
+      .main-header { margin-bottom: 18px; }
+    }
   </style>
 </head>
 <body>
@@ -306,6 +397,65 @@
       </g>
 
     </svg>
+  </div>
+
+  <!-- ── 모바일 전용 카드 레이아웃 (폰에서만 보임) ── -->
+  <div class="mobile-map">
+
+    <!-- 센터 노드: your space -->
+    <div class="mob-center" onclick="location.href='yourspace.html'">
+      <div class="mob-center-avatar">🪐</div>
+      <div class="mob-center-text">
+        <div class="mob-center-title">MIND OS</div>
+        <div class="mob-center-sub">your space ✦ — 개인 허브</div>
+      </div>
+      <div style="color:#d8b4fe;font-size:16px;">›</div>
+    </div>
+
+    <!-- 5개 카테고리 카드 그리드 -->
+    <div class="mob-grid">
+
+      <!-- Bio-Log -->
+      <div class="mob-card" onclick="location.href='biolog.html'"
+           style="--card-color:#c4b5fd; --card-dark:#5b21b6;">
+        <div class="mob-card-emoji">📓</div>
+        <div class="mob-card-name">Bio-Log</div>
+        <div class="mob-card-desc">운동 · 식단<br>피부 · 수면</div>
+      </div>
+
+      <!-- Empire -->
+      <div class="mob-card" onclick="location.href='empire.html'"
+           style="--card-color:#fda4af; --card-dark:#be123c;">
+        <div class="mob-card-emoji">🌟</div>
+        <div class="mob-card-name">Empire</div>
+        <div class="mob-card-desc">프로젝트<br>아이디어 · 크리에이팅</div>
+      </div>
+
+      <!-- Academy -->
+      <div class="mob-card" onclick="location.href='academy.html'"
+           style="--card-color:#7dd3fc; --card-dark:#0369a1;">
+        <div class="mob-card-emoji">📚</div>
+        <div class="mob-card-name">Academy</div>
+        <div class="mob-card-desc">독서 · 대학공부</div>
+      </div>
+
+      <!-- Capital -->
+      <div class="mob-card" onclick="location.href='capital.html'"
+           style="--card-color:#6ee7b7; --card-dark:#065f46;">
+        <div class="mob-card-emoji">💰</div>
+        <div class="mob-card-name">Capital</div>
+        <div class="mob-card-desc">가계부 · 재테크<br>경제</div>
+      </div>
+
+      <!-- Buffer — 홀수 번째라 자동으로 가운데 정렬됨 -->
+      <div class="mob-card" onclick="location.href='buffer.html'"
+           style="--card-color:#fcd34d; --card-dark:#92400e;">
+        <div class="mob-card-emoji">🛡️</div>
+        <div class="mob-card-name">Buffer</div>
+        <div class="mob-card-desc">여가 · 일기<br>리커버리</div>
+      </div>
+
+    </div>
   </div>
 
   <!-- 하단 상태 푸터 -->
