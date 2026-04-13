@@ -681,12 +681,13 @@
       const snap = await db.collection('mindos').doc('workout').get();
       if (snap.exists) {
         const fsData = snap.data();
-        if ((fsData._savedAt || 0) > localTime) {
-          // Firestore가 더 최신 → Firestore 데이터 사용 + localStorage도 업데이트
+        if ((fsData._savedAt || 0) >= localTime) {
+          // Firestore가 더 최신이거나 같으면 → Firestore 사용 + localStorage 업데이트
+          // _savedAt이 없는 기존 데이터(둘 다 0)일 때도 Firestore를 우선 → PC 저장값 반영
           _w = fsData;
           localStorage.setItem('mindos_workout', JSON.stringify(_w));
         } else {
-          // localStorage가 더 최신 (또는 동일) → localStorage 사용
+          // localStorage가 확실히 더 최신 (_savedAt이 Firestore보다 큼) → localStorage 사용
           if (localData) _w = localData;
         }
       } else {
