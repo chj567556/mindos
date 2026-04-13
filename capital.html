@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Capital — MIND OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+  <style>
+    /* ── 기본 리셋 ── */
+    *{ margin:0; padding:0; box-sizing:border-box; }
+    body{
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      background: #f0fdf4;  /* Capital 에메랄드/민트 배경 */
+      overflow-x: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── 페이지 진입 애니메이션 ── */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(14px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    body { animation: fadeUp .35s cubic-bezier(.4,0,.2,1); }
+
+    /* ── 배경 blob — 에메랄드/틸 계열 ── */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(72px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.5;
+    }
+    .b1 { width:420px; height:420px; background:#a7f3d0; top:-100px;  left:-80px;  animation:bm1 10s ease-in-out infinite; }
+    .b2 { width:340px; height:340px; background:#99f6e4; top:40px;    right:-70px; animation:bm2 13s ease-in-out infinite; }
+    .b3 { width:300px; height:300px; background:#fde68a; bottom:-70px;left:28%;    animation:bm3 11s ease-in-out infinite; }
+    @keyframes bm1 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(20px,25px) scale(1.05)} }
+    @keyframes bm2 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(-18px,20px) scale(0.97)} }
+    @keyframes bm3 { 0%,100%{transform:translate(0,0) scale(1)}   50%{transform:translate(15px,-20px) scale(1.03)} }
+
+    /* ── 뒤로가기 버튼 ── */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(110,231,183,0.5);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 22px;
+      transition: all .2s;
+      color: #065f46;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .back-btn:hover { background:rgba(255,255,255,.95); transform:translateX(-3px); }
+
+    /* ── 페이지 콘텐츠 영역 ── */
+    .sub-page-wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      width: 100%;
+      padding: 28px 14px 40px;
+    }
+
+    /* ── 헤더 ── */
+    .sub-header { margin-bottom: 26px; }
+    .sub-badge-el {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 3px 13px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      font-weight: 500;
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+    .sub-h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(24px, 5vw, 34px);
+      font-weight: 600;
+      font-style: italic;
+      /* 에메랄드 그라디언트 텍스트 */
+      background: linear-gradient(135deg, #059669, #0d9488);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .sub-desc {
+      font-size: 13.5px;
+      color: #065f46;
+      line-height: 1.72;
+      margin-top: 8px;
+      max-width: 540px;
+      opacity: 0.7;
+    }
+
+    /* ── 카테고리 카드 그리드 ── */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      width: 100%;
+    }
+
+    /* 카테고리 카드 — 유리 효과 */
+    .cat-card {
+      background: rgba(255,255,255,.84);
+      backdrop-filter: blur(16px);
+      border: 1.5px solid rgba(255,255,255,.95);
+      border-radius: 22px;
+      padding: 24px 20px 20px;
+      cursor: pointer;
+      transition: all .25s cubic-bezier(.4,0,.2,1);
+      box-shadow: 0 4px 18px rgba(5,150,105,0.07);
+      position: relative;
+      overflow: hidden;
+    }
+    .cat-card:hover { transform:translateY(-5px); box-shadow:0 12px 30px rgba(5,150,105,0.14); }
+
+    .cat-emoji { font-size:30px; margin-bottom:12px; display:block; }
+    .cat-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 17px;
+      font-weight: 600;
+      color: #052e16;
+      margin-bottom: 4px;
+    }
+    .cat-hint { font-size:12px; color:#4a8a6a; line-height:1.6; }
+
+    /* 카드 우하단 화살표 */
+    .cat-arrow {
+      position: absolute;
+      bottom: 14px;
+      right: 16px;
+      font-size: 14px;
+      opacity: 0.3;
+      transition: opacity .2s, transform .2s;
+      color: #059669;
+    }
+    .cat-card:hover .cat-arrow { opacity:.8; transform:translateX(3px); }
+
+    /* 준비 중 배지 */
+    .coming-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9.5px;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 8px;
+      margin-top: 8px;
+      font-weight: 500;
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+
+    /* ── 토스트 알림 ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(4,47,30,.92);
+      backdrop-filter: blur(14px);
+      color: white;
+      padding: 13px 22px;
+      border-radius: 18px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transition: all .3s cubic-bezier(.4,0,.2,1);
+      pointer-events: none;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <!-- 배경 blob -->
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <!-- 토스트 알림 -->
+  <div id="toast"></div>
+
+  <div class="sub-page-wrap">
+
+    <!-- MIND OS로 돌아가기 -->
+    <button class="back-btn" onclick="location.href='mind_os.html'">← MIND OS</button>
+
+    <!-- 헤더 -->
+    <div class="sub-header">
+      <div class="sub-badge-el">💰 Money & Assets</div>
+      <div class="sub-h2">Capital</div>
+      <div class="sub-desc">수입·지출·투자를 한 곳에서 관리해요. 카테고리를 선택해 시작해요!</div>
+    </div>
+
+    <!-- 카테고리 카드 4종 -->
+    <div class="cat-grid">
+
+      <!-- 대시보드 → capital_dashboard.html -->
+      <div class="cat-card" onclick="location.href='capital_dashboard.html'" style="border-top:4px solid #34d399">
+        <span class="cat-emoji">📊</span>
+        <div class="cat-name">대시보드</div>
+        <div class="cat-hint">이번 달 요약 · 저축률<br>저축 목표 달성 현황</div>
+        <div class="coming-badge">🔗 가계부 데이터 연동</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+      <!-- 가계부 → capital_ledger.html -->
+      <div class="cat-card" onclick="location.href='capital_ledger.html'" style="border-top:4px solid #6ee7b7">
+        <span class="cat-emoji">📒</span>
+        <div class="cat-name">가계부</div>
+        <div class="cat-hint">수입·지출 기록<br>카테고리별 예산 설정</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+      <!-- 재테크 → capital_invest.html -->
+      <div class="cat-card" onclick="location.href='capital_invest.html'" style="border-top:4px solid #10b981">
+        <span class="cat-emoji">💹</span>
+        <div class="cat-name">재테크</div>
+        <div class="cat-hint">적금 · 예금 · 주식<br>청년정책상품 만기 계산</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+      <!-- 경제 학습 → capital_study.html -->
+      <div class="cat-card" onclick="location.href='capital_study.html'" style="border-top:4px solid #0d9488">
+        <span class="cat-emoji">📚</span>
+        <div class="cat-name">경제 학습</div>
+        <div class="cat-hint">영상 · 기사 스크랩<br>내 경제 지식 노트</div>
+        <div class="cat-arrow">→</div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // 아직 구현 안 된 카테고리 클릭 시 토스트 메시지 표시
+    function comingSoon(name) {
+      const t = document.getElementById('toast');
+      t.textContent = `🚧 ${name} — 곧 구현 예정이에요!`;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+  </script>
+
+</body>
+</html>
