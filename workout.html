@@ -369,12 +369,19 @@
   // ── 데이터 변수 전역 선언 (initWorkout()에서 채워짐) ──────────
   let _w = {};
 
+  // 오늘 날짜를 "YYYY-MM-DD" 문자열로 반환 (날짜 비교용)
+  function getTodayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
   function saveWorkout() {
     const bwEl = document.getElementById('bw-inp');
     const data = {
       coins, history, purchases, shopItems, liftRecords, shoulderChoice,
       bodyWeight: bwEl ? bwEl.value : (_w.bodyWeight || '75'),
       loggedMuscles: Array.from(loggedMuscles),
+      loggedDate: getTodayStr(),  // 어느 날짜에 기록했는지 저장 — 날짜 바뀌면 자동 리셋용
       deletedDefaultIds,  // 삭제한 기본 아이템 ID 목록도 함께 저장
       shopVersion: 2,     // 상점 버전 — 가격 변경 시 버전 올리면 자동 리셋
       coinNerfV1: true    // 근력 코인 0.75배 너프 마이그레이션 완료 플래그
@@ -677,7 +684,16 @@
 
     liftRecords       = _w.liftRecords       || {};
     shoulderChoice    = _w.shoulderChoice    || 'ohp';
-    loggedMuscles     = new Set(_w.loggedMuscles || []);
+
+    // 날짜 비교 — 저장된 날짜가 오늘이 아니면 완료 기록 초기화
+    // 비유: 도장 찍힌 날짜가 오늘이 아니면 도장판을 깨끗이 지우는 것
+    const savedDate = _w.loggedDate || '';
+    if (savedDate === getTodayStr()) {
+      loggedMuscles = new Set(_w.loggedMuscles || []);  // 오늘 기록 복원
+    } else {
+      loggedMuscles = new Set();  // 날짜 바뀜 → 완료 기록 리셋 (새 날 시작)
+    }
+
     history           = _w.history           || [];
     coins             = _w.coins             || 0;
     purchases         = _w.purchases         || [];
