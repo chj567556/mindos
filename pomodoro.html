@@ -285,6 +285,46 @@
     }
     .btn-reset:hover { background: #f5f0ff; transform: rotate(90deg); }
 
+    /* ── 과목 선택 피커 — 타이머 시작 전 어떤 과목 공부할지 선택 ── */
+    .subj-pick-wrap {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .subj-pick-label {
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #a78bfa;
+      font-weight: 500;
+    }
+    .subj-pick-row {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    /* 과목 선택 버튼 — 기본은 테두리만, 선택 시 배경색 채워짐 */
+    .sp-pill {
+      padding: 5px 13px;
+      border-radius: 20px;
+      border: 1.5px solid #e5e7eb;
+      background: white;
+      cursor: pointer;
+      font-size: 12px;
+      color: #374151;
+      font-family: 'DM Sans', sans-serif;
+      transition: all .18s;
+      white-space: nowrap;
+    }
+    .sp-pill.on {
+      color: white;
+      border-color: transparent;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+
     /* ── 세션 카운터 ── */
     .session-row {
       display: flex;
@@ -410,6 +450,12 @@
         </div>
       </div>
 
+      <!-- 과목 선택 — 집중 세션에서 뭘 공부할지 선택 (timetable에 자동 기록됨) -->
+      <div class="subj-pick-wrap">
+        <div class="subj-pick-label">📚 공부 과목</div>
+        <div class="subj-pick-row" id="subj-pick-row"></div>
+      </div>
+
       <!-- 버튼: 시작/일시정지 + 초기화 -->
       <div class="controls">
         <button class="btn-main start" id="btn-main" onclick="toggleTimer()">시작</button>
@@ -460,6 +506,14 @@
     // ── 타이머 상태 저장 키 ──
     const TIMER_STATE_KEY = 'mindos_pomodoro_timer';
 
+    // ── 과목 선택 상태 ──
+    // timetable.html에서 저장한 subjects 목록을 공유해서 사용
+    let selSubjId    = 'etc';        // 현재 선택된 과목 ID
+    let selSubjName  = '기타';       // 선택된 과목 이름
+    let selSubjColor = '#7c3aed';    // 선택된 과목 색상
+    let selSubjEmoji = '📝';         // 선택된 과목 이모지
+    let sessionStartTime = null;     // 집중 세션 시작 시각 (세션 완료 시 기록용)
+
     // ── 뽀모도로 모드 설정 (분 단위) ──
     // 마치 게임의 레벨 설정처럼 — 모드마다 시간과 색이 다름
     const MODES = {
@@ -496,6 +550,7 @@
         isRunning,
         totalSeconds,
         leftSeconds,
+        date: todayKey,  // 저장 날짜 기록 — 날짜 바뀌면 sessionCount 리셋용
         // 실행 중이면 "몇 시 몇 분에 끝나는지" 저장 (페이지 없는 동안 흐른 시간 계산용)
         endTime: isRunning ? Date.now() + leftSeconds * 1000 : null,
       };
@@ -511,7 +566,8 @@
 
         // 모드 복원
         currentMode  = state.currentMode;
-        sessionCount = state.sessionCount || 0;
+        // 날짜가 바뀌었으면 토마토 카운트 리셋 — 어제 4세션이 오늘로 넘어오면 안 됨
+        sessionCount = (state.date === todayKey) ? (state.sessionCount || 0) : 0;
         totalSeconds = state.totalSeconds || MODES[currentMode].minutes * 60;
         const cfg    = MODES[currentMode];
 
@@ -628,6 +684,8 @@
 
     function startTimer() {
       isRunning = true;
+      // 집중 모드일 때만 시작 시각 기록 (세션 완료 시 timetable에 저장용)
+      if (currentMode === 'focus') sessionStartTime = new Date();
       // 버튼을 "일시정지" 스타일로 바꿈
       const btn = document.getElementById('btn-main');
       btn.textContent = '일시정지';
@@ -704,6 +762,9 @@
         stats.streak++;
         saveStats(stats);
         renderStats();
+
+        // 시간표에 세션 자동 기록 — timetable localStorage 공유
+        logSessionToTimetable();
 
         // 4세션 완료 시 긴 휴식 권유
         if (sessionCount === 0) {
@@ -897,6 +958,91 @@
 
     // 페이지 로드 시 Firestore 동기화 (비동기 — 타이머 동작에 영향 없음)
     syncFromFirestore();
+
+    // ────────────────────────────────
+    //  과목 선택 피커
+    //  timetable.html의 mindos_timetable localStorage를 읽어서
+    //  같은 과목 목록을 뽀모도로에서도 사용
+    // ────────────────────────────────
+    function loadAndRenderSubjects() {
+      let subjects = [];
+      try {
+        const raw = localStorage.getItem('mindos_timetable');
+        if (raw) subjects = JSON.parse(raw).subjects || [];
+      } catch(e) {}
+
+      // 기타 + 등록된 과목들
+      const items = [
+        { id:'etc', name:'기타', color:'#9ca3af', emoji:'📝' },
+        ...subjects
+      ];
+
+      const row = document.getElementById('subj-pick-row');
+      row.innerHTML = items.map(s =>
+        `<div class="sp-pill ${s.id===selSubjId?'on':''}"
+              style="${s.id===selSubjId?`background:${s.color}`:''}"
+              data-id="${s.id}" data-name="${s.name}" data-color="${s.color}" data-emoji="${s.emoji||''}"
+              onclick="pickSubj(this)">${s.emoji||''} ${s.name}</div>`
+      ).join('');
+    }
+
+    function pickSubj(el) {
+      selSubjId    = el.dataset.id;
+      selSubjName  = el.dataset.name;
+      selSubjColor = el.dataset.color;
+      selSubjEmoji = el.dataset.emoji;
+      // 모든 pill 초기화 후 선택된 것만 활성화
+      document.querySelectorAll('.sp-pill').forEach(p => {
+        p.classList.remove('on'); p.style.background = '';
+      });
+      el.classList.add('on');
+      el.style.background = selSubjColor;
+    }
+
+    // ────────────────────────────────
+    //  timetable에 집중 세션 기록
+    //  비유: 타이머가 울리면 일기장에 "언제부터 언제까지 뭘 공부했다" 자동으로 적는 것
+    // ────────────────────────────────
+    function logSessionToTimetable() {
+      if (!sessionStartTime) return;
+      const endTime = new Date();
+
+      // 날짜 문자열 (시작 시각 기준)
+      const d = sessionStartTime;
+      const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+      // timetable 데이터 불러오기 (없으면 빈 구조로)
+      let tt = { subjects:[], weekRoutine:{}, sessions:{} };
+      try {
+        const raw = localStorage.getItem('mindos_timetable');
+        if (raw) tt = JSON.parse(raw);
+      } catch(e) {}
+
+      if (!tt.sessions) tt.sessions = {};
+      if (!tt.sessions[ds]) tt.sessions[ds] = [];
+
+      // 세션 추가
+      tt.sessions[ds].push({
+        id: 's_' + Date.now(),
+        startH: sessionStartTime.getHours(), startM: sessionStartTime.getMinutes(),
+        endH: endTime.getHours(), endM: endTime.getMinutes(),
+        label: selSubjName,
+        color: selSubjColor,
+        emoji: '🍅',  // 타이머로 기록된 세션은 토마토 이모지
+        subjectId: selSubjId,
+        source: 'timer'
+      });
+
+      tt._savedAt = Date.now();
+      localStorage.setItem('mindos_timetable', JSON.stringify(tt));
+      // Firestore에도 동기화
+      db.collection('mindos').doc('timetable').set(tt).catch(e=>console.error('timetable 저장 실패:',e));
+
+      sessionStartTime = null;  // 다음 세션 위해 초기화
+    }
+
+    // 과목 목록 로드
+    loadAndRenderSubjects();
 
     // 브라우저 알림 권한 요청 — 다른 탭/페이지에 있을 때 팝업 알림 받으려면 필요
     requestNotificationPermission();
