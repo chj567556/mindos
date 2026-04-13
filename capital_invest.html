@@ -560,7 +560,41 @@
     /* ════════════════════════════════
        데이터 로드 (Firestore vs localStorage)
     ════════════════════════════════ */
+
+    // 가계부에서 계산된 잔액 — 재테크 페이지에 "현금 (가계부 연동)"으로 표시
+    let ledgerBalance = 0;
+
+    // 가계부(capital_ledger) 데이터를 읽어서 잔액 계산
+    // 비유: 통장 명세서를 꺼내서 수입-지출 합산하는 것
+    function loadLedgerBalance() {
+      try {
+        const raw = localStorage.getItem('mindos_capital_ledger');
+        if (!raw) return;
+        const ledger = JSON.parse(raw);
+        const txs = ledger.transactions || [];
+        ledgerBalance = txs.reduce((sum, tx) => {
+          return tx.type === 'income' ? sum + (tx.amount||0) : sum - (tx.amount||0);
+        }, 0);
+      } catch(e) { console.error('가계부 잔액 계산 실패:', e); }
+    }
+
     async function loadData() {
+      // 가계부 잔액 먼저 읽기 (Firestore에서도 최신 가계부 가져오기 시도)
+      try {
+        const snap = await db.collection('mindos').doc('capital_ledger').get();
+        if (snap.exists) {
+          // Firestore 가계부가 localStorage보다 최신이면 덮어쓰기
+          const fsLedger = snap.data();
+          const localRaw = localStorage.getItem('mindos_capital_ledger');
+          const localTime = localRaw ? (JSON.parse(localRaw)._savedAt||0) : 0;
+          if ((fsLedger._savedAt||0) > localTime) {
+            localStorage.setItem('mindos_capital_ledger', JSON.stringify(fsLedger));
+          }
+        }
+      } catch(e) {}
+      loadLedgerBalance();  // 가계부 잔액 계산
+
+      // 재테크 자산 데이터 로드
       const local = localStorage.getItem('mindos_capital_invest');
       let localData=null, localTime=0;
       if (local) {
@@ -618,12 +652,19 @@
     function renderHero() {
       let totalValue=0, totalPrincipal=0;
 
+      // 수동 자산 합산
       (data.assets||[]).forEach(a => {
         const val  = getCurrentValue(a);
         const prin = getPrincipal(a);
         totalValue     += val;
         totalPrincipal += prin;
       });
+
+      // 가계부 잔액도 총자산에 포함 (현금 = 실제 수중에 있는 돈)
+      if (ledgerBalance > 0) {
+        totalValue     += ledgerBalance;
+        totalPrincipal += ledgerBalance;
+      }
 
       const profit  = totalValue - totalPrincipal;
       const profitRate = totalPrincipal > 0
@@ -726,7 +767,37 @@
         currentFilter==='all' || a.type===currentFilter
       );
 
-      if (filtered.length===0) {
+      // 가계부 연동 현금 카드 — 'all' 또는 'cash' 필터일 때만 표시
+      let ledgerCardHTML = '';
+      if ((currentFilter==='all' || currentFilter==='cash') && ledgerBalance !== 0) {
+        const isPositive = ledgerBalance >= 0;
+        ledgerCardHTML = `
+          <div class="asset-card" style="border-left:3px solid #10b981">
+            <div class="asset-card-header">
+              <div class="asset-icon icon-cash">💵</div>
+              <div class="asset-info">
+                <div class="asset-name">현금 <span style="font-size:10px;color:#10b981;font-weight:500;margin-left:4px">가계부 연동 🔗</span></div>
+                <div class="asset-type-badge" style="background:#d1fae5;color:#065f46">현금</div>
+              </div>
+              <div style="text-align:right">
+                <div class="asset-cur-val" style="color:${isPositive?'#059669':'#dc2626'}">
+                  ${isPositive?'':'−'}₩${fmt(Math.abs(ledgerBalance))}
+                </div>
+                <div style="font-size:10px;color:#9ca3af;margin-top:2px">가계부 수입−지출</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#6b7280;padding:8px 0 0;border-top:1px solid #f3f4f6;margin-top:8px">
+              💡 가계부에서 자동으로 계산됩니다. 수정하려면 가계부에서 거래를 수정하세요.
+              <button onclick="location.href='capital_ledger.html'"
+                style="margin-left:8px;padding:3px 9px;background:#d1fae5;border:none;border-radius:8px;
+                       font-size:10px;color:#065f46;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">
+                가계부 열기 →
+              </button>
+            </div>
+          </div>`;
+      }
+
+      if (filtered.length===0 && !ledgerCardHTML) {
         el.innerHTML = `
           <div class="empty-state">
             <div class="empty-icon">${currentFilter==='all'?'💹':TYPE_INFO[currentFilter]?.emoji||'📦'}</div>
@@ -738,7 +809,7 @@
         return;
       }
 
-      el.innerHTML = filtered.map(a => assetCardHTML(a)).join('');
+      el.innerHTML = ledgerCardHTML + filtered.map(a => assetCardHTML(a)).join('');
     }
 
 
