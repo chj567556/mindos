@@ -384,7 +384,8 @@
       loggedDate: getTodayStr(),  // 어느 날짜에 기록했는지 저장 — 날짜 바뀌면 자동 리셋용
       deletedDefaultIds,  // 삭제한 기본 아이템 ID 목록도 함께 저장
       shopVersion: 2,     // 상점 버전 — 가격 변경 시 버전 올리면 자동 리셋
-      coinNerfV1: true    // 근력 코인 0.75배 너프 마이그레이션 완료 플래그
+      coinNerfV1: true,   // 근력 코인 0.75배 너프 마이그레이션 완료 플래그
+      _savedAt: Date.now() // 저장 시각 기록 — PC↔폰 동기화 판별용 (더 최신 데이터를 씀)
     };
     localStorage.setItem('mindos_workout', JSON.stringify(data));
     db.collection('mindos').doc('workout').set(data).catch(e => console.error('Firebase 저장 실패:', e));
@@ -666,19 +667,36 @@
 
   // ── 초기 렌더링 ──────────────────────────────────────────────────
   async function initWorkout() {
-    // localStorage 먼저 읽기 (항상 최신 — 삭제/수정 내역 보존)
+    // 1. localStorage 읽기 + 저장 시각 확인
+    // 비유: 냉장고(localStorage)에 음식이 있는지 확인하고 언제 넣은 건지 날짜 확인
     const local = localStorage.getItem('mindos_workout');
+    let localData = null, localTime = 0;
     if (local) {
-      try { _w = JSON.parse(local); } catch(e) {}
+      try { localData = JSON.parse(local); localTime = localData._savedAt || 0; } catch(e) {}
     }
-    // localStorage 비어있을 때만 Firestore에서 가져옴 (처음 접속하는 기기용)
-    if (!_w || Object.keys(_w).length === 0) {
-      try {
-        const snap = await db.collection('mindos').doc('workout').get();
-        if (snap.exists) _w = snap.data();
-      } catch(e) {
-        console.error('Firebase 로드 실패:', e);
+
+    // 2. Firestore도 항상 확인해서 타임스탬프 비교
+    // 비유: 마트(Firestore)에도 가서 어느 쪽이 더 신선한지 날짜 비교
+    try {
+      const snap = await db.collection('mindos').doc('workout').get();
+      if (snap.exists) {
+        const fsData = snap.data();
+        if ((fsData._savedAt || 0) > localTime) {
+          // Firestore가 더 최신 → Firestore 데이터 사용 + localStorage도 업데이트
+          _w = fsData;
+          localStorage.setItem('mindos_workout', JSON.stringify(_w));
+        } else {
+          // localStorage가 더 최신 (또는 동일) → localStorage 사용
+          if (localData) _w = localData;
+        }
+      } else {
+        // Firestore에 아무것도 없으면 localStorage 사용
+        if (localData) _w = localData;
       }
+    } catch(e) {
+      // Firestore 연결 실패 → 오프라인 폴백: localStorage 사용
+      console.error('Firebase 로드 실패:', e);
+      if (localData) _w = localData;
     }
     if (!_w) _w = {};
 
