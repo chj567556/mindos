@@ -773,23 +773,23 @@
         const isPositive = ledgerBalance >= 0;
         ledgerCardHTML = `
           <div class="asset-card" style="border-left:3px solid #10b981">
-            <div class="asset-card-header">
-              <div class="asset-icon icon-cash">💵</div>
+            <div class="asset-header">
+              <div class="asset-type-icon icon-cash">💵</div>
               <div class="asset-info">
                 <div class="asset-name">현금 <span style="font-size:10px;color:#10b981;font-weight:500;margin-left:4px">가계부 연동 🔗</span></div>
-                <div class="asset-type-badge" style="background:#d1fae5;color:#065f46">현금</div>
+                <div class="asset-institution">현금 · 가계부 자동 계산</div>
               </div>
-              <div style="text-align:right">
-                <div class="asset-cur-val" style="color:${isPositive?'#059669':'#dc2626'}">
+              <div class="asset-right">
+                <div class="asset-value" style="color:${isPositive?'#059669':'#dc2626'}">
                   ${isPositive?'':'−'}₩${fmt(Math.abs(ledgerBalance))}
                 </div>
-                <div style="font-size:10px;color:#9ca3af;margin-top:2px">가계부 수입−지출</div>
+                <div class="asset-badge badge-zero">수입−지출</div>
               </div>
             </div>
-            <div style="font-size:11px;color:#6b7280;padding:8px 0 0;border-top:1px solid #f3f4f6;margin-top:8px">
-              💡 가계부에서 자동으로 계산됩니다. 수정하려면 가계부에서 거래를 수정하세요.
+            <div style="font-size:11px;color:#6b7280;padding:10px 0 2px;border-top:1px solid #f3f4f6;margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span>💡 가계부 잔액이 자동 반영됩니다</span>
               <button onclick="location.href='capital_ledger.html'"
-                style="margin-left:8px;padding:3px 9px;background:#d1fae5;border:none;border-radius:8px;
+                style="padding:4px 10px;background:#d1fae5;border:none;border-radius:8px;
                        font-size:10px;color:#065f46;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">
                 가계부 열기 →
               </button>
