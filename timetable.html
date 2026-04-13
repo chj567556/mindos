@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>시간표 — MIND OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <style>
+    /* ── 기본 리셋 ── */
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      background: #f5f0ff;
+      overflow-x: hidden;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+    body { animation: fadeUp .35s cubic-bezier(.4,0,.2,1); }
+
+    /* ── 배경 blob ── */
+    .blob { position:fixed; border-radius:50%; filter:blur(72px); pointer-events:none; z-index:0; opacity:0.45; }
+    .b1 { width:420px; height:420px; background:#c4b5fd; top:-100px; left:-80px; animation:bm1 10s ease-in-out infinite; }
+    .b2 { width:340px; height:340px; background:#e9d5ff; top:40px; right:-70px; animation:bm2 13s ease-in-out infinite; }
+    .b3 { width:300px; height:300px; background:#ddd6fe; bottom:-70px; left:28%; animation:bm3 11s ease-in-out infinite; }
+    @keyframes bm1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(20px,25px) scale(1.05)} }
+    @keyframes bm2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-18px,20px) scale(0.97)} }
+    @keyframes bm3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(15px,-20px) scale(1.03)} }
+
+    /* ── 레이아웃 ── */
+    .inner { position:relative; z-index:1; max-width:960px; margin:0 auto; padding:20px 14px 60px; }
+
+    /* ── 뒤로가기 ── */
+    .back-btn { display:inline-flex; align-items:center; gap:6px; padding:7px 16px; background:rgba(255,255,255,.82); backdrop-filter:blur(10px); border:1px solid rgba(196,181,253,0.5); border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; margin-bottom:20px; transition:all .2s; color:#6d28d9; font-family:'DM Sans',sans-serif; }
+    .back-btn:hover { background:rgba(255,255,255,.95); transform:translateX(-3px); }
+
+    /* ── 헤더 ── */
+    .page-badge { display:inline-block; background:#ede9fe; border:1px solid #c4b5fd; border-radius:12px; padding:3px 12px; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#6d28d9; font-weight:500; margin-bottom:8px; }
+    .page-title { font-family:'Playfair Display',serif; font-size:clamp(22px,5vw,30px); font-weight:600; color:#4c1d95; margin-bottom:16px; }
+    .page-title em { font-style:italic; background:linear-gradient(135deg,#a855f7,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+    /* ── 상단 액션 바 ── */
+    .top-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+    .main-tabs { display:flex; gap:5px; background:rgba(255,255,255,.65); backdrop-filter:blur(12px); border:1.5px solid rgba(196,181,253,0.35); border-radius:16px; padding:4px; }
+    .main-tab { padding:7px 20px; border-radius:12px; font-size:13px; font-weight:500; cursor:pointer; border:none; background:transparent; color:#7c3aed; font-family:'DM Sans',sans-serif; transition:all .22s; }
+    .main-tab.active { background:#7c3aed; color:white; box-shadow:0 2px 10px rgba(124,58,237,0.28); }
+    .subj-manage-btn { display:flex; align-items:center; gap:6px; padding:8px 14px; background:rgba(255,255,255,.75); border:1.5px solid rgba(196,181,253,0.4); border-radius:14px; cursor:pointer; font-size:12px; color:#6d28d9; font-family:'DM Sans',sans-serif; transition:all .18s; }
+    .subj-manage-btn:hover { background:rgba(255,255,255,.95); }
+
+    /* ══════════════════════════════
+       주간 탭
+    ══════════════════════════════ */
+    /* PC: 7컬럼 그리드 */
+    .week-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; }
+
+    /* 모바일: 요일 탭 + 단일 컬럼 */
+    .week-day-tabs { display:none; gap:6px; margin-bottom:12px; overflow-x:auto; padding-bottom:2px; }
+    .wdt { padding:7px 13px; border-radius:12px; font-size:12px; font-weight:500; cursor:pointer; border:1.5px solid rgba(196,181,253,0.4); background:rgba(255,255,255,.6); color:#6d28d9; white-space:nowrap; flex-shrink:0; transition:all .18s; }
+    .wdt.active { background:#7c3aed; color:white; border-color:#7c3aed; }
+
+    /* 요일 카드 */
+    .day-col { background:rgba(255,255,255,.80); backdrop-filter:blur(14px); border:1.5px solid rgba(255,255,255,.95); border-radius:18px; padding:11px 9px; min-height:150px; }
+    .day-col.today-col { border-color:#a78bfa; box-shadow:0 0 0 2px rgba(167,139,250,0.18); }
+    .day-lbl { font-size:11px; font-weight:700; text-align:center; margin-bottom:9px; padding-bottom:7px; border-bottom:1px solid #f3f4f6; color:#374151; }
+    .day-lbl.today { color:#7c3aed; }
+
+    /* 루틴 블록 칩 */
+    .rb { display:flex; align-items:flex-start; gap:5px; padding:5px 6px; border-radius:9px; margin-bottom:5px; cursor:pointer; transition:opacity .18s; position:relative; }
+    .rb:hover { opacity:.72; }
+    .rb-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:3px; }
+    .rb-label { font-size:10.5px; font-weight:600; color:#1f2937; }
+    .rb-time { font-size:9.5px; color:#9ca3af; }
+    .rb-x { position:absolute; top:3px; right:4px; font-size:9px; color:#d1d5db; display:none; }
+    .rb:hover .rb-x { display:block; }
+
+    /* 루틴 추가 버튼 */
+    .add-rb-btn { width:100%; padding:5px; border:1.5px dashed rgba(167,139,250,0.4); border-radius:10px; background:transparent; cursor:pointer; font-size:11px; color:#a78bfa; font-family:'DM Sans',sans-serif; transition:all .18s; margin-top:4px; }
+    .add-rb-btn:hover { background:rgba(167,139,250,0.08); border-color:#a78bfa; }
+
+    /* ══════════════════════════════
+       일간 탭
+    ══════════════════════════════ */
+    .date-nav { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+    .nav-btn { padding:7px 16px; background:rgba(255,255,255,.75); border:1.5px solid rgba(196,181,253,0.4); border-radius:12px; cursor:pointer; font-size:13px; font-family:'DM Sans',sans-serif; color:#6d28d9; transition:all .18s; }
+    .nav-btn:hover { background:rgba(255,255,255,.95); }
+    .date-lbl { flex:1; text-align:center; font-size:15px; font-weight:600; color:#4c1d95; }
+    .today-badge { font-size:10px; background:#ede9fe; border:1px solid #c4b5fd; color:#7c3aed; border-radius:10px; padding:2px 8px; margin-left:6px; vertical-align:middle; }
+
+    /* 일간 2컬럼 레이아웃 */
+    .daily-layout { display:grid; grid-template-columns:1fr 190px; gap:13px; align-items:start; }
+
+    /* 타임라인 카드 */
+    .tl-card { background:rgba(255,255,255,.82); backdrop-filter:blur(14px); border:1.5px solid rgba(255,255,255,.95); border-radius:20px; padding:16px; }
+    .tl-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .tl-title { font-size:12px; font-weight:600; color:#374151; letter-spacing:.5px; }
+    .add-block-btn { padding:5px 13px; background:linear-gradient(135deg,#a855f7,#7c3aed); border:none; border-radius:10px; color:white; font-size:11px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .18s; }
+    .add-block-btn:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(124,58,237,0.3); }
+
+    /* 타임라인 스크롤 컨테이너 */
+    .tl-scroll { overflow-y:auto; max-height:600px; position:relative; }
+
+    /* 요약 카드 */
+    .sum-card { background:rgba(255,255,255,.82); backdrop-filter:blur(14px); border:1.5px solid rgba(255,255,255,.95); border-radius:20px; padding:16px; position:sticky; top:20px; }
+    .sum-title { font-size:10px; font-weight:600; color:#9ca3af; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:12px; }
+    .sum-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    .sum-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+    .sum-name { font-size:12px; color:#374151; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sum-time { font-size:11px; font-weight:700; color:#6d28d9; }
+    .sum-bar { height:3px; background:#f3f4f6; border-radius:3px; margin-bottom:10px; }
+    .sum-bar-fill { height:3px; border-radius:3px; transition:width .5s; }
+    .sum-total { border-top:1px solid #f3f4f6; margin-top:8px; padding-top:10px; display:flex; justify-content:space-between; align-items:center; }
+    .sum-total-lbl { font-size:11px; color:#9ca3af; }
+    .sum-total-val { font-size:14px; font-weight:700; color:#7c3aed; }
+    .sum-empty { text-align:center; padding:20px 0; font-size:12px; color:#9ca3af; }
+
+    /* ══════════════════════════════
+       모달 공통
+    ══════════════════════════════ */
+    .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.42); backdrop-filter:blur(4px); z-index:100; align-items:center; justify-content:center; padding:16px; }
+    .modal-bg.open { display:flex; }
+    .modal { background:white; border-radius:24px; padding:24px; width:100%; max-width:360px; box-shadow:0 20px 60px rgba(0,0,0,.18); max-height:90vh; overflow-y:auto; }
+    .modal-title { font-size:16px; font-weight:700; color:#1f2937; margin-bottom:18px; }
+    .modal-lbl { font-size:12px; color:#6b7280; margin-bottom:5px; font-weight:500; }
+    .modal-inp { width:100%; padding:9px 12px; border:1.5px solid #e5e7eb; border-radius:12px; font-size:14px; font-family:'DM Sans',sans-serif; outline:none; color:#1f2937; margin-bottom:12px; transition:border .18s; }
+    .modal-inp:focus { border-color:#a78bfa; }
+    .time-row { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+    .time-row .modal-inp { margin-bottom:0; }
+    .time-sep { color:#9ca3af; }
+    .color-row { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:14px; }
+    .c-dot { width:26px; height:26px; border-radius:50%; border:2.5px solid transparent; cursor:pointer; transition:all .18s; }
+    .c-dot.on { border-color:#1f2937; transform:scale(1.2); }
+    .emoji-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+    .e-btn { width:34px; height:34px; border:1.5px solid #e5e7eb; border-radius:9px; background:white; cursor:pointer; font-size:17px; display:flex; align-items:center; justify-content:center; transition:all .18s; }
+    .e-btn.on { border-color:#a78bfa; background:#f5f3ff; }
+    .modal-btn-row { display:flex; gap:8px; }
+    .m-confirm { flex:1; padding:10px; background:linear-gradient(135deg,#a855f7,#7c3aed); border:none; border-radius:12px; color:white; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .m-confirm:hover { opacity:.9; }
+    .m-cancel { padding:10px 16px; background:#f3f4f6; border:none; border-radius:12px; color:#6b7280; font-size:13px; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .m-cancel:hover { background:#e5e7eb; }
+
+    /* 블록 추가 과목 선택 */
+    .subj-pill-row { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:12px; }
+    .subj-pill { padding:5px 12px; border-radius:20px; border:1.5px solid #e5e7eb; background:white; cursor:pointer; font-size:12px; color:#374151; font-family:'DM Sans',sans-serif; transition:all .18s; white-space:nowrap; }
+    .subj-pill.on { color:white; border-color:transparent; }
+
+    /* 과목 관리 모달 */
+    .sj-list { max-height:260px; overflow-y:auto; margin-bottom:12px; }
+    .sj-item { display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:12px; background:#f9fafb; margin-bottom:6px; }
+    .sj-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+    .sj-name { flex:1; font-size:13px; font-weight:500; color:#374151; }
+    .sj-del { padding:3px 9px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; cursor:pointer; font-size:10px; color:#ef4444; font-family:'DM Sans',sans-serif; }
+    .add-sj-row { display:flex; gap:7px; }
+    .add-sj-inp { flex:1; padding:8px 12px; border:1.5px solid #e5e7eb; border-radius:12px; font-size:13px; font-family:'DM Sans',sans-serif; outline:none; }
+    .add-sj-inp:focus { border-color:#a78bfa; }
+    .add-sj-btn { padding:8px 14px; background:linear-gradient(135deg,#a855f7,#7c3aed); border:none; border-radius:12px; color:white; font-size:12px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
+
+    /* ── 토스트 ── */
+    .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:rgba(30,20,50,.9); backdrop-filter:blur(12px); color:white; padding:10px 22px; border-radius:20px; font-size:13px; font-weight:500; z-index:999; transition:transform .3s cubic-bezier(.34,1.56,.64,1); white-space:nowrap; pointer-events:none; }
+    .toast.show { transform:translateX(-50%) translateY(0); }
+
+    /* ── 빈 상태 ── */
+    .empty-hint { text-align:center; padding:14px 0 8px; font-size:11px; color:#c4b5fd; }
+
+    /* ── 반응형 ── */
+    @media (max-width:700px) {
+      .week-grid { display:none; }
+      .week-day-tabs { display:flex; }
+      .daily-layout { grid-template-columns:1fr; }
+      .sum-card { position:static; order:-1; }
+    }
+    @media (min-width:701px) {
+      .mobile-day-col { display:none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <div class="inner">
+    <button class="back-btn" onclick="location.href='yourspace.html'">← Your Space</button>
+
+    <div class="page-badge">📅 Schedule</div>
+    <div class="page-title"><em>시간표</em></div>
+
+    <!-- 상단 탭 + 과목 관리 버튼 -->
+    <div class="top-bar">
+      <div class="main-tabs">
+        <button class="main-tab active" id="btn-weekly" onclick="switchTab('weekly')">📅 주간</button>
+        <button class="main-tab"        id="btn-daily"  onclick="switchTab('daily')">🕐 일간</button>
+      </div>
+      <button class="subj-manage-btn" onclick="openSubjModal()">🎨 과목 관리</button>
+    </div>
+
+    <!-- ══ 주간 탭 ══ -->
+    <div id="pane-weekly">
+      <!-- 모바일: 요일 탭 -->
+      <div class="week-day-tabs" id="week-day-tabs"></div>
+      <!-- PC: 7컬럼 -->
+      <div class="week-grid" id="week-grid"></div>
+      <!-- 모바일: 단일 컬럼 -->
+      <div class="mobile-day-col" id="mobile-day-col"></div>
+    </div>
+
+    <!-- ══ 일간 탭 ══ -->
+    <div id="pane-daily" style="display:none">
+      <div class="date-nav">
+        <button class="nav-btn" onclick="changeDay(-1)">←</button>
+        <div class="date-lbl" id="date-lbl"></div>
+        <button class="nav-btn" onclick="changeDay(1)">→</button>
+      </div>
+      <div class="daily-layout">
+        <div class="tl-card">
+          <div class="tl-top">
+            <div class="tl-title">📍 타임라인</div>
+            <button class="add-block-btn" onclick="openAddBlock()">+ 추가</button>
+          </div>
+          <div class="tl-scroll">
+            <div id="tl-body" style="position:relative"></div>
+          </div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-title">오늘 요약</div>
+          <div id="sum-body"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 루틴 추가 모달 ══ -->
+  <div class="modal-bg" id="modal-routine">
+    <div class="modal">
+      <div class="modal-title">루틴 추가</div>
+      <input type="hidden" id="r-day">
+      <div class="modal-lbl">이름</div>
+      <input class="modal-inp" type="text" id="r-name" placeholder="예: 아침 PT, 강의, 저녁 식사">
+      <div class="modal-lbl">시간</div>
+      <div class="time-row">
+        <input class="modal-inp" type="time" id="r-start" value="09:00">
+        <span class="time-sep">~</span>
+        <input class="modal-inp" type="time" id="r-end" value="10:00">
+      </div>
+      <div class="modal-lbl">색상</div>
+      <div class="color-row" id="r-color-row"></div>
+      <div class="modal-lbl">이모지</div>
+      <div class="emoji-row" id="r-emoji-row"></div>
+      <div class="modal-btn-row">
+        <button class="m-cancel" onclick="closeModal('modal-routine')">취소</button>
+        <button class="m-confirm" onclick="saveRoutine()">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 블록 추가 모달 ══ -->
+  <div class="modal-bg" id="modal-block">
+    <div class="modal">
+      <div class="modal-title">기록 추가</div>
+      <div class="modal-lbl">시간</div>
+      <div class="time-row">
+        <input class="modal-inp" type="time" id="b-start">
+        <span class="time-sep">~</span>
+        <input class="modal-inp" type="time" id="b-end">
+      </div>
+      <div class="modal-lbl">과목 / 활동</div>
+      <div class="subj-pill-row" id="b-subj-row"></div>
+      <div class="modal-lbl">메모 (선택)</div>
+      <input class="modal-inp" type="text" id="b-memo" placeholder="짧은 메모">
+      <div class="modal-btn-row">
+        <button class="m-cancel" onclick="closeModal('modal-block')">취소</button>
+        <button class="m-confirm" onclick="saveBlock()">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 과목 관리 모달 ══ -->
+  <div class="modal-bg" id="modal-subj">
+    <div class="modal">
+      <div class="modal-title">과목 관리</div>
+      <div class="sj-list" id="sj-list"></div>
+      <div class="modal-lbl">새 과목 추가</div>
+      <div class="add-sj-row">
+        <input class="add-sj-inp" type="text" id="new-sj-name" placeholder="과목 이름">
+        <button class="add-sj-btn" onclick="addSubject()">추가</button>
+      </div>
+      <div class="color-row" style="margin-top:10px" id="new-sj-color-row"></div>
+      <div style="margin-top:16px">
+        <button class="m-confirm" onclick="closeModal('modal-subj')" style="width:100%">완료</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── Firebase 초기화 ──
+    firebase.initializeApp({
+      apiKey: "AIzaSyBC_aeuuKXoJIodrmfeQ52bvWpzcZMrtPM",
+      authDomain: "mind-os-b23a5.firebaseapp.com",
+      projectId: "mind-os-b23a5",
+      storageBucket: "mind-os-b23a5.firebasestorage.app",
+      messagingSenderId: "88544003760",
+      appId: "1:88544003760:web:58af8d47183d2e259d9d75"
+    });
+    const db = firebase.firestore();
+
+    // ── 상수 ──
+    const DAYS = ['월','화','수','목','금','토','일'];
+    // 색상 프리셋 — 캘린더 스타일 팔레트
+    const COLORS = ['#7c3aed','#6366f1','#0ea5e9','#10b981','#f59e0b','#ec4899','#ef4444','#14b8a6','#f97316','#84cc16'];
+    // 이모지 프리셋 — 자주 쓰는 활동들
+    const EMOJIS = ['📚','🏃','🍳','💤','🎮','🎵','💪','📝','🧘','🍜','☕','🎯','🪖','✏️','🏋️','🚶'];
+
+    // ── 데이터 구조 ──
+    // 마치 파일 캐비닛처럼 — subjects(과목 목록), weekRoutine(주간 고정 일정), sessions(실제 기록)
+    let data = {
+      subjects: [],           // [{ id, name, color, emoji }]
+      weekRoutine: {          // 요일별 고정 루틴
+        '0':[],'1':[],'2':[],'3':[],'4':[],'5':[],'6':[]
+      },
+      sessions: {}            // { 'YYYY-MM-DD': [{id, startH, startM, endH, endM, label, color, emoji, subjectId, source}] }
+    };
+
+    // ── 현재 UI 상태 ──
+    let currentTab = 'weekly';
+    let dayOffset = 0;              // 0=오늘, -1=어제, 1=내일
+    let mobileDay = getTodayIdx();  // 모바일 요일 탭에서 선택된 요일
+    let selColor = COLORS[0];       // 루틴 추가 모달 선택 색상
+    let selEmoji = EMOJIS[0];       // 루틴 추가 모달 선택 이모지
+    let selSubjId = 'etc';          // 블록 추가 모달 선택 과목
+    let newSjColor = COLORS[0];     // 과목 추가 선택 색상
+
+    // ──────────────────────────────
+    //  날짜 유틸
+    // ──────────────────────────────
+    // offset일 후의 날짜를 "YYYY-MM-DD" 문자열로 반환
+    function dateStr(offset=0) {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+    // JS 요일(0=일)을 월~일(0~6)로 변환
+    function getTodayIdx() { return (new Date().getDay() + 6) % 7; }
+    function getDayIdx(offset=0) {
+      const d = new Date(); d.setDate(d.getDate()+offset);
+      return (d.getDay() + 6) % 7;
+    }
+    function getDateObj(offset=0) { const d=new Date(); d.setDate(d.getDate()+offset); return d; }
+    function fmtTime(h,m) { return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; }
+
+    // ──────────────────────────────
+    //  Firebase 로드 / 저장
+    //  CLAUDE.md 패턴: _savedAt 타임스탬프 비교로 PC↔폰 자동 동기화
+    // ──────────────────────────────
+    async function loadData() {
+      const local = localStorage.getItem('mindos_timetable');
+      let localTime = 0;
+      if (local) {
+        try { const ld = JSON.parse(local); localTime = ld._savedAt||0; data = ld; } catch(e) {}
+      }
+      try {
+        const snap = await db.collection('mindos').doc('timetable').get();
+        if (snap.exists) {
+          const fd = snap.data();
+          if ((fd._savedAt||0) > localTime) {
+            data = fd;
+            localStorage.setItem('mindos_timetable', JSON.stringify(data));
+          }
+        }
+      } catch(e) { console.error('Firestore 로드 실패:', e); }
+      // 데이터 구조 안전 초기화 (누락 필드 보완)
+      if (!data.subjects) data.subjects = [];
+      if (!data.weekRoutine) data.weekRoutine = {'0':[],'1':[],'2':[],'3':[],'4':[],'5':[],'6':[]};
+      if (!data.sessions) data.sessions = {};
+      renderAll();
+    }
+
+    function saveData() {
+      data._savedAt = Date.now();
+      localStorage.setItem('mindos_timetable', JSON.stringify(data));
+      db.collection('mindos').doc('timetable').set(data).catch(e=>console.error('저장 실패:',e));
+    }
+
+    // ──────────────────────────────
+    //  탭 전환
+    // ──────────────────────────────
+    function switchTab(tab) {
+      currentTab = tab;
+      document.getElementById('pane-weekly').style.display = tab==='weekly' ? '' : 'none';
+      document.getElementById('pane-daily').style.display  = tab==='daily'  ? '' : 'none';
+      document.getElementById('btn-weekly').className = 'main-tab' + (tab==='weekly'?' active':'');
+      document.getElementById('btn-daily').className  = 'main-tab' + (tab==='daily' ?' active':'');
+      if (tab==='daily') renderDaily();
+    }
+
+    function renderAll() { renderWeekly(); if(currentTab==='daily') renderDaily(); }
+
+    // ══════════════════════════════
+    //  주간 탭 렌더링
+    // ══════════════════════════════
+    function renderWeekly() {
+      const todayIdx = getTodayIdx();
+
+      // PC 7컬럼 그리드
+      document.getElementById('week-grid').innerHTML =
+        DAYS.map((day,i) => buildDayColHTML(day, i, todayIdx)).join('');
+
+      // 모바일 요일 탭
+      document.getElementById('week-day-tabs').innerHTML =
+        DAYS.map((d,i) =>
+          `<div class="wdt ${i===mobileDay?'active':''}" onclick="selectMobileDay(${i})">${d}${i===todayIdx?'●':''}</div>`
+        ).join('');
+
+      // 모바일 단일 컬럼
+      document.getElementById('mobile-day-col').innerHTML =
+        buildDayColHTML(DAYS[mobileDay], mobileDay, todayIdx);
+    }
+
+    // 요일 카드 HTML 생성 — 루틴 블록 + 추가 버튼
+    function buildDayColHTML(day, i, todayIdx) {
+      const blocks = data.weekRoutine[String(i)] || [];
+      const isToday = i === todayIdx;
+      // 시간순 정렬
+      const sorted = [...blocks].sort((a,b)=>(a.startH*60+a.startM)-(b.startH*60+b.startM));
+      return `
+        <div class="day-col ${isToday?'today-col':''}">
+          <div class="day-lbl ${isToday?'today':''}">
+            ${day}${isToday?' <span style="color:#a78bfa;font-size:9px">today</span>':''}
+          </div>
+          ${sorted.length
+            ? sorted.map(b=>`
+                <div class="rb" style="background:${b.color}18" onclick="deleteRoutine('${i}','${b.id}')">
+                  <div class="rb-dot" style="background:${b.color}"></div>
+                  <div>
+                    <div class="rb-label">${b.emoji||''} ${b.label}</div>
+                    <div class="rb-time">${fmtTime(b.startH,b.startM)}~${fmtTime(b.endH,b.endM)}</div>
+                  </div>
+                  <div class="rb-x">✕</div>
+                </div>`).join('')
+            : '<div class="empty-hint">비어 있음</div>'
+          }
+          <button class="add-rb-btn" onclick="openAddRoutine(${i})">+ 루틴 추가</button>
+        </div>`;
+    }
+
+    function selectMobileDay(idx) { mobileDay=idx; renderWeekly(); }
+
+    // ══════════════════════════════
+    //  일간 탭 렌더링
+    // ══════════════════════════════
+    const START_H = 6;   // 타임라인 시작 시각 (06:00)
+    const END_H   = 24;  // 타임라인 끝 시각  (24:00)
+    const H_PX    = 56;  // 1시간 = 56px
+    const LBL_W   = 44;  // 시간 레이블 너비(px)
+
+    // 시각(h, m) → 타임라인 상단에서의 픽셀 위치
+    function timeToTop(h, m) { return (h - START_H) * H_PX + (m / 60) * H_PX; }
+    // 두 시각 사이의 높이(px)
+    function durToPx(sh, sm, eh, em) { return Math.max(((eh*60+em)-(sh*60+sm))/60*H_PX, 22); }
+
+    function renderDaily() {
+      const ds = dateStr(dayOffset);
+      const d  = getDateObj(dayOffset);
+      const isToday = dayOffset === 0;
+      const dayName = DAYS[getDayIdx(dayOffset)];
+
+      // 날짜 레이블
+      document.getElementById('date-lbl').innerHTML =
+        `${d.getMonth()+1}월 ${d.getDate()}일 (${dayName})` +
+        (isToday ? '<span class="today-badge">오늘</span>' : '');
+
+      // ── 타임라인 HTML 빌드 ──
+      // 전체 높이 = 시간 수 × H_PX
+      const totalH_px = (END_H - START_H) * H_PX;
+      let html = `<div style="position:relative;height:${totalH_px}px;min-width:0">`;
+
+      // 1. 시간 눈금 선 (배경 그리드)
+      for (let h = START_H; h <= END_H; h++) {
+        const top = timeToTop(h, 0);
+        html += `
+          <div style="position:absolute;top:${top}px;left:0;right:0;display:flex;align-items:center;pointer-events:none">
+            <div style="width:${LBL_W}px;font-size:10px;color:#c4b5fd;flex-shrink:0;padding-right:6px;text-align:right">
+              ${h < END_H ? `${String(h).padStart(2,'0')}:00` : ''}
+            </div>
+            <div style="flex:1;height:1px;background:${h%6===0?'#e9d5ff':'#f3f4f6'}"></div>
+          </div>`;
+      }
+
+      // 2. 오늘 요일의 루틴 블록 (배경 — 불투명도 낮음)
+      const routines = data.weekRoutine[String(getDayIdx(dayOffset))] || [];
+      routines.forEach(r => {
+        if (r.startH < START_H || r.startH >= END_H) return;
+        const top = timeToTop(r.startH, r.startM);
+        const ht  = durToPx(r.startH, r.startM, r.endH, r.endM);
+        html += `
+          <div style="position:absolute;top:${top}px;left:${LBL_W+4}px;right:2px;height:${ht}px;
+                      background:${r.color};opacity:0.35;border-radius:8px;padding:3px 8px;
+                      overflow:hidden;pointer-events:none;z-index:1">
+            <div style="font-size:10px;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              ${r.emoji||''} ${r.label}
+            </div>
+          </div>`;
+      });
+
+      // 3. 실제 기록 세션 블록 (클릭하면 삭제)
+      const sessions = data.sessions[ds] || [];
+      sessions.forEach(s => {
+        if (s.startH < START_H || s.startH >= END_H) return;
+        const top = timeToTop(s.startH, s.startM);
+        const ht  = durToPx(s.startH, s.startM, s.endH, s.endM);
+        const src = s.source==='timer' ? '🍅 ' : '';
+        html += `
+          <div onclick="deleteBlock('${ds}','${s.id}')"
+               style="position:absolute;top:${top}px;left:${LBL_W+4}px;right:2px;height:${ht}px;
+                      background:${s.color};border-radius:8px;padding:4px 8px;cursor:pointer;
+                      overflow:hidden;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.12);transition:opacity .18s"
+               onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+            <div style="font-size:11px;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              ${src}${s.emoji||''} ${s.label}
+            </div>
+            ${ht>30?`<div style="font-size:9.5px;color:rgba(255,255,255,0.8)">${fmtTime(s.startH,s.startM)}~${fmtTime(s.endH,s.endM)}</div>`:''}
+          </div>`;
+      });
+
+      // 4. 현재 시각 빨간 선 (오늘만)
+      if (isToday) {
+        const now = new Date();
+        const nh = now.getHours(), nm = now.getMinutes();
+        if (nh >= START_H && nh < END_H) {
+          const top = timeToTop(nh, nm);
+          html += `
+            <div style="position:absolute;top:${top}px;left:${LBL_W}px;right:0;height:2px;background:#ef4444;z-index:10;pointer-events:none">
+              <div style="position:absolute;left:-5px;top:-4px;width:9px;height:9px;border-radius:50%;background:#ef4444"></div>
+            </div>`;
+        }
+      }
+
+      html += '</div>';
+      document.getElementById('tl-body').innerHTML = html;
+
+      renderSummary(ds);
+    }
+
+    // 과목별 공부 시간 요약 렌더링
+    function renderSummary(ds) {
+      const sessions = data.sessions[ds] || [];
+      // 과목별로 시간 집계 — 마치 계좌별 잔고 합산처럼
+      const map = {};
+      sessions.forEach(s => {
+        const mins = (s.endH*60+s.endM) - (s.startH*60+s.startM);
+        if (mins <= 0) return;
+        const key = s.subjectId || 'etc';
+        if (!map[key]) map[key] = { mins:0, color:s.color, label:s.label, emoji:s.emoji||'' };
+        map[key].mins += mins;
+      });
+
+      const total = Object.values(map).reduce((a,b)=>a+b.mins, 0);
+      const entries = Object.entries(map).sort((a,b)=>b[1].mins-a[1].mins);
+
+      if (!entries.length) {
+        document.getElementById('sum-body').innerHTML =
+          `<div class="sum-empty">아직 기록 없음<br><span style="font-size:18px">✨</span></div>
+           <div class="sum-total"><div class="sum-total-lbl">총 시간</div><div class="sum-total-val">0m</div></div>`;
+        return;
+      }
+
+      let html = '';
+      entries.forEach(([,v]) => {
+        const pct = total ? v.mins/total*100 : 0;
+        const h = Math.floor(v.mins/60), m = v.mins%60;
+        const ts = h>0 ? `${h}h ${m}m` : `${m}m`;
+        html += `
+          <div class="sum-row">
+            <div class="sum-dot" style="background:${v.color}"></div>
+            <div class="sum-name">${v.emoji} ${v.label}</div>
+            <div class="sum-time">${ts}</div>
+          </div>
+          <div class="sum-bar">
+            <div class="sum-bar-fill" style="width:${pct}%;background:${v.color}"></div>
+          </div>`;
+      });
+
+      const th = Math.floor(total/60), tm = total%60;
+      html += `
+        <div class="sum-total">
+          <div class="sum-total-lbl">총 시간</div>
+          <div class="sum-total-val">${th>0?th+'h ':''} ${tm}m</div>
+        </div>`;
+      document.getElementById('sum-body').innerHTML = html;
+    }
+
+    // ══════════════════════════════
+    //  루틴 CRUD
+    // ══════════════════════════════
+    function openAddRoutine(dayIdx) {
+      document.getElementById('r-day').value = dayIdx;
+      document.getElementById('r-name').value = '';
+      renderCPicker('r-color-row', 'selColor');
+      renderEPicker('r-emoji-row');
+      openModal('modal-routine');
+    }
+
+    function saveRoutine() {
+      const dayIdx = document.getElementById('r-day').value;
+      const name   = document.getElementById('r-name').value.trim();
+      const start  = document.getElementById('r-start').value;
+      const end    = document.getElementById('r-end').value;
+      if (!name)          { showToast('이름을 입력해줘!'); return; }
+      if (!start||!end||start>=end) { showToast('시간을 다시 확인해줘!'); return; }
+      const [sh,sm] = start.split(':').map(Number);
+      const [eh,em] = end.split(':').map(Number);
+      const block = { id:'r_'+Date.now(), startH:sh, startM:sm, endH:eh, endM:em, label:name, color:selColor, emoji:selEmoji };
+      if (!data.weekRoutine[String(dayIdx)]) data.weekRoutine[String(dayIdx)] = [];
+      data.weekRoutine[String(dayIdx)].push(block);
+      // 시간순 정렬
+      data.weekRoutine[String(dayIdx)].sort((a,b)=>(a.startH*60+a.startM)-(b.startH*60+b.startM));
+      saveData(); renderWeekly(); closeModal('modal-routine');
+      showToast('루틴 추가됨! 🗓️');
+    }
+
+    function deleteRoutine(dayIdx, blockId) {
+      if (!confirm('이 루틴을 삭제할까요?')) return;
+      data.weekRoutine[String(dayIdx)] = (data.weekRoutine[String(dayIdx)]||[]).filter(b=>b.id!==blockId);
+      saveData(); renderWeekly();
+      showToast('삭제됨');
+    }
+
+    // ══════════════════════════════
+    //  세션 블록 CRUD
+    // ══════════════════════════════
+    function openAddBlock() {
+      // 현재 시각을 기본값으로 설정
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2,'0');
+      const mm = String(now.getMinutes()).padStart(2,'0');
+      document.getElementById('b-start').value = `${hh}:${mm}`;
+      document.getElementById('b-end').value   = `${hh}:${mm}`;
+      document.getElementById('b-memo').value  = '';
+
+      // 과목 선택 버튼들 — 기타 + 등록 과목
+      const items = [
+        { id:'etc', name:'기타', color:'#9ca3af', emoji:'📝' },
+        ...data.subjects
+      ];
+      selSubjId = 'etc';
+      document.getElementById('b-subj-row').innerHTML = items.map(s =>
+        `<div class="subj-pill ${s.id===selSubjId?'on':''}"
+              style="${s.id===selSubjId?`background:${s.color};border-color:${s.color};color:white`:''}"
+              data-id="${s.id}" data-color="${s.color}" data-emoji="${s.emoji||''}" data-name="${s.name}"
+              onclick="selectBlockSubj(this)">${s.emoji||''} ${s.name}</div>`
+      ).join('');
+
+      openModal('modal-block');
+    }
+
+    function selectBlockSubj(el) {
+      selSubjId = el.dataset.id;
+      // 모든 pill 초기화 후 선택한 것만 활성화
+      document.querySelectorAll('#b-subj-row .subj-pill').forEach(p => {
+        p.classList.remove('on');
+        p.style.background = ''; p.style.borderColor = ''; p.style.color = '';
+      });
+      el.classList.add('on');
+      el.style.background = el.dataset.color;
+      el.style.borderColor = el.dataset.color;
+      el.style.color = 'white';
+    }
+
+    function saveBlock() {
+      const start = document.getElementById('b-start').value;
+      const end   = document.getElementById('b-end').value;
+      const memo  = document.getElementById('b-memo').value.trim();
+      if (!start||!end||start>=end) { showToast('시간을 다시 확인해줘!'); return; }
+
+      const selEl = document.querySelector('#b-subj-row .subj-pill.on');
+      const color = selEl ? selEl.dataset.color : '#9ca3af';
+      const emoji = selEl ? selEl.dataset.emoji : '📝';
+      const name  = selEl ? selEl.dataset.name  : '기타';
+
+      const [sh,sm] = start.split(':').map(Number);
+      const [eh,em] = end.split(':').map(Number);
+      const ds = dateStr(dayOffset);
+      if (!data.sessions[ds]) data.sessions[ds] = [];
+      data.sessions[ds].push({
+        id:'s_'+Date.now(), startH:sh, startM:sm, endH:eh, endM:em,
+        label: memo || name, color, emoji, subjectId:selSubjId, source:'manual'
+      });
+      saveData(); renderDaily(); closeModal('modal-block');
+      showToast('기록 추가됨! ✅');
+    }
+
+    function deleteBlock(ds, blockId) {
+      if (!confirm('이 기록을 삭제할까요?')) return;
+      data.sessions[ds] = (data.sessions[ds]||[]).filter(b=>b.id!==blockId);
+      saveData(); renderDaily();
+      showToast('삭제됨');
+    }
+
+    // 날짜 이동
+    function changeDay(delta) { dayOffset += delta; renderDaily(); }
+
+    // ══════════════════════════════
+    //  과목 관리
+    // ══════════════════════════════
+    function openSubjModal() {
+      renderSjList();
+      renderCPicker('new-sj-color-row', 'newSjColor');
+      openModal('modal-subj');
+    }
+
+    function renderSjList() {
+      const el = document.getElementById('sj-list');
+      if (!data.subjects.length) {
+        el.innerHTML = '<div class="sum-empty" style="padding:12px 0">등록된 과목 없음</div>'; return;
+      }
+      el.innerHTML = data.subjects.map(s=>
+        `<div class="sj-item">
+          <div class="sj-dot" style="background:${s.color}"></div>
+          <div class="sj-name">${s.emoji||''} ${s.name}</div>
+          <button class="sj-del" onclick="deleteSubject('${s.id}')">삭제</button>
+        </div>`
+      ).join('');
+    }
+
+    function addSubject() {
+      const name = document.getElementById('new-sj-name').value.trim();
+      if (!name) { showToast('이름을 입력해줘!'); return; }
+      data.subjects.push({ id:'subj_'+Date.now(), name, color:newSjColor, emoji:'📚' });
+      saveData(); renderSjList();
+      document.getElementById('new-sj-name').value = '';
+      showToast(`${name} 추가됨!`);
+    }
+
+    function deleteSubject(id) {
+      data.subjects = data.subjects.filter(s=>s.id!==id);
+      saveData(); renderSjList();
+      showToast('삭제됨');
+    }
+
+    // ══════════════════════════════
+    //  색상 / 이모지 피커
+    // ══════════════════════════════
+    // varName: 'selColor' 또는 'newSjColor' (전역 변수 이름을 문자열로 받음)
+    function renderCPicker(containerId, varName) {
+      document.getElementById(containerId).innerHTML = COLORS.map(c=>
+        `<div class="c-dot ${window[varName]===c?'on':''}" style="background:${c}"
+              onclick="pickColor('${c}','${containerId}','${varName}')"></div>`
+      ).join('');
+    }
+    function pickColor(c, cid, vn) { window[vn]=c; renderCPicker(cid,vn); }
+
+    function renderEPicker(containerId) {
+      document.getElementById(containerId).innerHTML = EMOJIS.map(e=>
+        `<div class="e-btn ${selEmoji===e?'on':''}" onclick="pickEmoji('${e}','${containerId}')">${e}</div>`
+      ).join('');
+    }
+    function pickEmoji(e, cid) { selEmoji=e; renderEPicker(cid); }
+
+    // ══════════════════════════════
+    //  모달 유틸
+    // ══════════════════════════════
+    function openModal(id)  { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    // 모달 배경 클릭 시 닫기
+    document.querySelectorAll('.modal-bg').forEach(bg =>
+      bg.addEventListener('click', e => { if(e.target===bg) bg.classList.remove('open'); })
+    );
+
+    // ══════════════════════════════
+    //  뽀모도로 연동용 공개 함수
+    //  pomodoro.html에서 타이머 완료 시 이 함수를 통해 세션 자동 기록
+    // ══════════════════════════════
+    function addTimerSession(ds, startH, startM, endH, endM, label, color, emoji, subjectId) {
+      if (!data.sessions[ds]) data.sessions[ds] = [];
+      data.sessions[ds].push({
+        id:'s_'+Date.now(), startH, startM, endH, endM,
+        label: label||'집중 세션', color: color||'#7c3aed',
+        emoji: emoji||'🍅', subjectId: subjectId||'etc', source:'timer'
+      });
+      saveData();
+    }
+
+    // ── 토스트 ──
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 2500);
+    }
+
+    // ── 초기화 ──
+    loadData();
+  </script>
+</body>
+</html>
