@@ -327,10 +327,13 @@
     let currentTab = 'weekly';
     let dayOffset = 0;              // 0=오늘, -1=어제, 1=내일
     let mobileDay = getTodayIdx();  // 모바일 요일 탭에서 선택된 요일
-    let selColor = COLORS[0];       // 루틴 추가 모달 선택 색상
-    let selEmoji = EMOJIS[0];       // 루틴 추가 모달 선택 이모지
-    let selSubjId = 'etc';          // 블록 추가 모달 선택 과목
-    let newSjColor = COLORS[0];     // 과목 추가 선택 색상
+    // 모달 선택 상태를 객체로 묶음 — let 변수는 window[]로 접근 안 되므로 객체 사용
+    const sel = {
+      color:   COLORS[0],   // 루틴 추가 선택 색상
+      emoji:   EMOJIS[0],   // 루틴 추가 선택 이모지
+      sjColor: COLORS[0],   // 과목 추가 선택 색상
+    };
+    let selSubjId = 'etc';  // 블록 추가 모달 선택 과목
 
     // ──────────────────────────────
     //  날짜 유틸
@@ -597,7 +600,7 @@
     function openAddRoutine(dayIdx) {
       document.getElementById('r-day').value = dayIdx;
       document.getElementById('r-name').value = '';
-      renderCPicker('r-color-row', 'selColor');
+      renderCPicker('r-color-row', 'color');
       renderEPicker('r-emoji-row');
       openModal('modal-routine');
     }
@@ -611,7 +614,7 @@
       if (!start||!end||start>=end) { showToast('시간을 다시 확인해줘!'); return; }
       const [sh,sm] = start.split(':').map(Number);
       const [eh,em] = end.split(':').map(Number);
-      const block = { id:'r_'+Date.now(), startH:sh, startM:sm, endH:eh, endM:em, label:name, color:selColor, emoji:selEmoji };
+      const block = { id:'r_'+Date.now(), startH:sh, startM:sm, endH:eh, endM:em, label:name, color:sel.color, emoji:sel.emoji };
       if (!data.weekRoutine[String(dayIdx)]) data.weekRoutine[String(dayIdx)] = [];
       data.weekRoutine[String(dayIdx)].push(block);
       // 시간순 정렬
@@ -706,7 +709,7 @@
     // ══════════════════════════════
     function openSubjModal() {
       renderSjList();
-      renderCPicker('new-sj-color-row', 'newSjColor');
+      renderCPicker('new-sj-color-row', 'sjColor');
       openModal('modal-subj');
     }
 
@@ -727,7 +730,7 @@
     function addSubject() {
       const name = document.getElementById('new-sj-name').value.trim();
       if (!name) { showToast('이름을 입력해줘!'); return; }
-      data.subjects.push({ id:'subj_'+Date.now(), name, color:newSjColor, emoji:'📚' });
+      data.subjects.push({ id:'subj_'+Date.now(), name, color:sel.sjColor, emoji:'📚' });
       saveData(); renderSjList();
       document.getElementById('new-sj-name').value = '';
       showToast(`${name} 추가됨!`);
@@ -742,21 +745,22 @@
     // ══════════════════════════════
     //  색상 / 이모지 피커
     // ══════════════════════════════
-    // varName: 'selColor' 또는 'newSjColor' (전역 변수 이름을 문자열로 받음)
-    function renderCPicker(containerId, varName) {
+    // key: sel 객체의 키 이름 ('color' 또는 'sjColor')
+    // 비유: sel이라는 서랍장에서 해당 칸을 열어서 값을 바꾸는 것
+    function renderCPicker(containerId, key) {
       document.getElementById(containerId).innerHTML = COLORS.map(c=>
-        `<div class="c-dot ${window[varName]===c?'on':''}" style="background:${c}"
-              onclick="pickColor('${c}','${containerId}','${varName}')"></div>`
+        `<div class="c-dot ${sel[key]===c?'on':''}" style="background:${c}"
+              onclick="pickColor('${c}','${containerId}','${key}')"></div>`
       ).join('');
     }
-    function pickColor(c, cid, vn) { window[vn]=c; renderCPicker(cid,vn); }
+    function pickColor(c, cid, key) { sel[key]=c; renderCPicker(cid, key); }
 
     function renderEPicker(containerId) {
       document.getElementById(containerId).innerHTML = EMOJIS.map(e=>
-        `<div class="e-btn ${selEmoji===e?'on':''}" onclick="pickEmoji('${e}','${containerId}')">${e}</div>`
+        `<div class="e-btn ${sel.emoji===e?'on':''}" onclick="pickEmoji('${e}','${containerId}')">${e}</div>`
       ).join('');
     }
-    function pickEmoji(e, cid) { selEmoji=e; renderEPicker(cid); }
+    function pickEmoji(e, cid) { sel.emoji=e; renderEPicker(cid); }
 
     // ══════════════════════════════
     //  모달 유틸
