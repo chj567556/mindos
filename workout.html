@@ -243,14 +243,30 @@
   <div class="modal-overlay" id="modal-overlay" onclick="closeModalOut(event)">
     <div class="modal">
       <h3>음식 추가</h3>
-      <div class="msub">나만의 치팅 음식을 상점에 추가해요</div>
+      <div class="msub">영양정보 입력하면 코인 가격이 자동 계산돼요</div>
       <div class="modal-row"><div class="modal-label">이모지</div><div class="emoji-grid-m" id="emoji-grid-m"></div></div>
       <div class="modal-row"><div class="modal-label">음식 이름 *</div><input class="modal-inp" id="m-name" placeholder="예) 떡볶이"></div>
       <div class="modal-row"><div class="modal-label">브랜드/설명</div><input class="modal-inp" id="m-brand" placeholder="예) 국물 떡볶이 2인분"></div>
-      <div class="modal-row"><div class="modal-label">칼로리 (kcal)</div><input class="modal-inp" id="m-kcal" type="number" placeholder="예) 650"></div>
+      <!-- 칼로리 입력 — 가격 계산 공식의 베이스 -->
+      <div class="modal-row"><div class="modal-label">칼로리 (kcal) *</div><input class="modal-inp" id="m-kcal" type="number" placeholder="예) 650" oninput="updateCalcPrice()"></div>
+      <!-- 지방·당류는 나란히 배치 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="modal-row"><div class="modal-label">지방 (g)</div><input class="modal-inp" id="m-fat" type="number" placeholder="예) 30" oninput="updateCalcPrice()"></div>
+        <div class="modal-row"><div class="modal-label">당류 (g)</div><input class="modal-inp" id="m-sugar" type="number" placeholder="예) 15" oninput="updateCalcPrice()"></div>
+      </div>
+      <!-- 조리방식 — 구운 것은 최종 가격 ×0.8 할인 적용 -->
       <div class="modal-row">
-        <div class="modal-label">코인 가격 * <span class="price-hint">라면=90, 치킨=200~220 참고</span></div>
-        <input class="modal-inp" id="m-price" type="number" placeholder="최소 5코인">
+        <div class="modal-label">조리방식</div>
+        <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:#374151;cursor:pointer"><input type="radio" name="cooktype" value="none" checked onchange="updateCalcPrice()"> 해당없음</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:#374151;cursor:pointer"><input type="radio" name="cooktype" value="fried" onchange="updateCalcPrice()"> 🍳 튀긴 것</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:#16a34a;cursor:pointer"><input type="radio" name="cooktype" value="grilled" onchange="updateCalcPrice()"> 🔥 구운 것 (−20%)</label>
+        </div>
+      </div>
+      <!-- 자동 계산된 코인 가격 표시 (읽기 전용) -->
+      <div class="modal-row">
+        <div class="modal-label">코인 가격 <span style="font-size:10px;color:#9ca3af;font-weight:400">(자동 계산 · 칼로리÷5 + 지방×1.5 + 당류×2)</span></div>
+        <div id="m-price-display" style="padding:9px 13px;border:1.5px solid #e5e7eb;border-radius:12px;background:#f9fafb;font-size:15px;font-weight:700;color:#854d0e;min-height:40px;display:flex;align-items:center">—</div>
       </div>
       <div class="modal-row"><div class="modal-label">카테고리</div><div class="cat-grid-m" id="cat-grid-m"></div></div>
       <div class="modal-actions">
@@ -499,13 +515,13 @@
     showToast('🔄','초기화 완료','다시 모아봐요 💪');
   }
 
-  // 목표 진행도 렌더링 — DEFAULT_SHOP 가격과 맞춰서 관리
+  // 목표 진행도 렌더링 — DEFAULT_SHOP 가격과 맞춰서 관리 (공식 기반 가격으로 업데이트)
   const GOALS_BASE=[
-    {emoji:'🍜',name:'라면',         price:90,  days:'~4.5일',  color:'#16a34a',fill:'#4ade80'},
-    {emoji:'🥐',name:'빵 & 크루아상', price:140, days:'~7일',   color:'#d97706',fill:'#fbbf24'},
-    {emoji:'🍕',name:'스쿨버거피자', price:230, days:'~11.5일', color:'#ea580c',fill:'#fb923c'},
-    {emoji:'🍗',name:'황금올리브',   price:200, days:'~10일',   color:'#b45309',fill:'#f59e0b'},
-    {emoji:'🍕',name:'오지치즈',     price:280, days:'~14일',   color:'#9a3412',fill:'#f97316'},
+    {emoji:'🍜',name:'라면',            price:143, days:'~7일',  color:'#166534',fill:'#4ade80'},
+    {emoji:'🍜',name:'마라탕',          price:261, days:'~13일', color:'#9a3412',fill:'#fb923c'},
+    {emoji:'🍗',name:'황금올리브',      price:284, days:'~14일', color:'#b45309',fill:'#f59e0b'},
+    {emoji:'🍗',name:'간지치킨',        price:327, days:'~16일', color:'#be123c',fill:'#f87171'},
+    {emoji:'🍕',name:'오지치즈포테이토',price:439, days:'~22일', color:'#9a3412',fill:'#f97316'},
   ];
   function renderGoals(){const goals=[...GOALS_BASE,...shopItems.filter(i=>i.custom).map(i=>({emoji:i.emoji,name:i.name,price:i.price,days:'커스텀',color:'#7c3aed',fill:'#a78bfa'}))].slice(0,6);document.getElementById('goals-grid').innerHTML=goals.map(g=>{const pct=Math.min(100,Math.round((coins/g.price)*100));return `<div class="goal-item2"><div style="display:flex;align-items:center;gap:7px;margin-bottom:5px"><span style="font-size:17px">${g.emoji}</span><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#1f2937">${g.name}</div><div style="font-size:9.5px;color:#9ca3af">${g.price}🪙 · ${g.days}</div></div>${coins>=g.price?'<div style="font-size:8px;background:#dcfce7;color:#166534;padding:2px 6px;border-radius:6px;font-weight:700">가능!</div>':''}</div><div class="prog-bg"><div class="prog-fill" style="width:${pct}%;background:linear-gradient(90deg,${g.fill},${g.color})"></div></div><div style="display:flex;justify-content:space-between;font-size:9.5px;color:#9ca3af"><span style="color:${g.color};font-weight:600">${pct}%</span><span>${Math.min(coins,g.price)}/${g.price}🪙</span></div></div>`;}).join('');}
 
@@ -565,26 +581,48 @@
   }
 
   // ── 치팅 상점 ───────────────────────────────────────────────────
+  // 가격 공식: (칼로리÷5) + (지방×1.5) + (당류×2), 구운 것은 ×0.8
   const DEFAULT_SHOP = [
-    // 치킨 — 1.5주 (200~220코인)
-    {id:'jikobar',    emoji:'🍗',name:'지코바',          brand:'지코바 양념치킨', kcal:1100,sugar:28,fat:42,sodium:2100,price:220,cat:'chicken',bar:'#ef4444',priceBg:'#fee2e2',priceColor:'#be123c',diff:'🔥~11일', diffBg:'#fee2e2',diffColor:'#be123c'},
-    {id:'goldenolive',emoji:'🍗',name:'황금올리브',      brand:'BBQ 황금올리브',  kcal:950, sugar:8, fat:55,sodium:1800,price:200,cat:'chicken',bar:'#f59e0b',priceBg:'#fef9c3',priceColor:'#854d0e',diff:'✨~10일', diffBg:'#fef9c3',diffColor:'#854d0e'},
-    {id:'ganji',      emoji:'🍗',name:'간지치킨',        brand:'허니콤보 스타일', kcal:1050,sugar:22,fat:48,sodium:2000,price:210,cat:'chicken',bar:'#dc2626',priceBg:'#fee2e2',priceColor:'#be123c',diff:'🔥~10.5일',diffBg:'#fee2e2',diffColor:'#be123c'},
-    // 피자 — 2주 (230~280코인)
-    {id:'ozcheese',   emoji:'🍕',name:'오지치즈포테이토',brand:'피자스쿨',        kcal:1350,sugar:18,fat:62,sodium:2400,price:280,cat:'pizza',  bar:'#f97316',priceBg:'#ffedd5',priceColor:'#9a3412',diff:'💀~14일', diffBg:'#ffedd5',diffColor:'#9a3412'},
-    {id:'schoolpizza',emoji:'🍕',name:'스쿨버거피자',    brand:'피자스쿨',        kcal:900, sugar:14,fat:38,sodium:2000,price:230,cat:'pizza',  bar:'#f97316',priceBg:'#ffedd5',priceColor:'#9a3412',diff:'✨~11.5일',diffBg:'#ffedd5',diffColor:'#9a3412'},
-    // 중식 — 라면 4~5일 / 마라탕 1~1.5주
-    {id:'malatang',   emoji:'🍜',name:'마라탕',          brand:'마라샹궈 포함',   kcal:850, sugar:12,fat:45,sodium:3200,price:175,cat:'chinese',bar:'#dc2626',priceBg:'#fee2e2',priceColor:'#991b1b',diff:'🌶️~9일',  diffBg:'#fff1f2',diffColor:'#991b1b'},
-    {id:'ramen',      emoji:'🍜',name:'라면',            brand:'신라면/불닭 등',  kcal:500, sugar:8, fat:18,sodium:1900,price:90, cat:'chinese',bar:'#f59e0b',priceBg:'#fef9c3',priceColor:'#854d0e',diff:'⚡~4.5일', diffBg:'#dcfce7',diffColor:'#166534'},
-    // 디저트 — 1주 (140~150코인)
-    {id:'cake',       emoji:'🍰',name:'케이크',          brand:'카페 케이크 1조각',kcal:420,sugar:38,fat:22,sodium:280, price:150,cat:'dessert',bar:'#ec4899',priceBg:'#fce7f3',priceColor:'#9d174d',diff:'✨~7.5일', diffBg:'#fce7f3',diffColor:'#9d174d'},
-    {id:'bread',      emoji:'🥐',name:'빵 & 크루아상',   brand:'베이커리 1~2개',  kcal:480, sugar:20,fat:24,sodium:400, price:140,cat:'dessert',bar:'#f59e0b',priceBg:'#fef9c3',priceColor:'#854d0e',diff:'✨~7일',   diffBg:'#fef9c3',diffColor:'#854d0e'},
+    // 분식
+    {id:'ramen',         emoji:'🍜',name:'라면',             brand:'신라면/불닭 등',    kcal:500, sugar:8, fat:18,sodium:1900,price:143,cat:'bunkfood',cookType:'none',   bar:'#f59e0b',priceBg:'#fef9c3',priceColor:'#854d0e'},
+    // 외식
+    {id:'malatang',      emoji:'🍜',name:'마라탕',           brand:'마라샹궈 포함',     kcal:850, sugar:12,fat:45,sodium:3200,price:261,cat:'dining',  cookType:'none',   bar:'#f97316',priceBg:'#ffedd5',priceColor:'#9a3412'},
+    // 패스트푸드 — 튀긴 것은 보정 없음, 구운 것(지코바)은 ×0.8 할인
+    {id:'goldenolive',   emoji:'🍗',name:'황금올리브',       brand:'BBQ 황금올리브',    kcal:950, sugar:8, fat:55,sodium:1800,price:284,cat:'fastfood', cookType:'fried',  bar:'#ef4444',priceBg:'#fee2e2',priceColor:'#be123c'},
+    {id:'ganji',         emoji:'🍗',name:'간지치킨',         brand:'허니콤보 스타일',   kcal:1050,sugar:22,fat:48,sodium:2000,price:327,cat:'fastfood', cookType:'fried',  bar:'#ef4444',priceBg:'#fee2e2',priceColor:'#be123c'},
+    {id:'jikobar',       emoji:'🍗',name:'지코바',           brand:'지코바 양념치킨',   kcal:1100,sugar:28,fat:42,sodium:2100,price:271,cat:'fastfood', cookType:'grilled',bar:'#ef4444',priceBg:'#fee2e2',priceColor:'#be123c'},
+    {id:'schoolpizza',   emoji:'🍕',name:'스쿨버거피자',     brand:'피자스쿨',          kcal:900, sugar:14,fat:38,sodium:2000,price:265,cat:'fastfood', cookType:'none',   bar:'#ef4444',priceBg:'#fee2e2',priceColor:'#be123c'},
+    {id:'ozcheese',      emoji:'🍕',name:'오지치즈포테이토', brand:'피자스쿨',          kcal:1350,sugar:18,fat:62,sodium:2400,price:439,cat:'fastfood', cookType:'none',   bar:'#ef4444',priceBg:'#fee2e2',priceColor:'#be123c'},
+    // 디저트
+    {id:'cake',          emoji:'🍰',name:'케이크',           brand:'카페 케이크 1조각', kcal:420, sugar:38,fat:22,sodium:280, price:193,cat:'dessert',  cookType:'none',   bar:'#ec4899',priceBg:'#fce7f3',priceColor:'#9d174d'},
+    {id:'bread',         emoji:'🥐',name:'빵 & 크루아상',   brand:'베이커리 1~2개',    kcal:480, sugar:20,fat:24,sodium:400, price:172,cat:'dessert',  cookType:'none',   bar:'#ec4899',priceBg:'#fce7f3',priceColor:'#9d174d'},
+    {id:'icecreamwaffle',emoji:'🧇',name:'아이스크림와플',   brand:'와플대학',           kcal:600, sugar:45,fat:28,sodium:300, price:252,cat:'dessert',  cookType:'none',   bar:'#ec4899',priceBg:'#fce7f3',priceColor:'#9d174d'},
   ];
   let shopItems = [...DEFAULT_SHOP];
-  const CATS=['chicken','pizza','chinese','dessert','other'];
-  const CAT_LABELS={all:'🍽️ 전체',chicken:'🍗 치킨',pizza:'🍕 피자',chinese:'🍜 중식',dessert:'🍞 디저트',other:'🍱 기타'};
-  const CAT_COLORS={chicken:{bar:'#ef4444',priceBg:'#fee2e2',priceColor:'#be123c'},pizza:{bar:'#f97316',priceBg:'#ffedd5',priceColor:'#9a3412'},chinese:{bar:'#f59e0b',priceBg:'#fef9c3',priceColor:'#854d0e'},dessert:{bar:'#ec4899',priceBg:'#fce7f3',priceColor:'#9d174d'},other:{bar:'#a78bfa',priceBg:'#ede9fe',priceColor:'#7c3aed'}};
+  // 카테고리 재구성: 패스트푸드 / 외식 / 디저트 / 분식 / 기타
+  const CATS=['fastfood','dining','dessert','bunkfood','other'];
+  const CAT_LABELS={all:'🍽️ 전체',fastfood:'🍔 패스트푸드',dining:'🍽️ 외식',dessert:'🍰 디저트',bunkfood:'🍜 분식',other:'🎲 기타'};
+  const CAT_COLORS={fastfood:{bar:'#ef4444',priceBg:'#fee2e2',priceColor:'#be123c'},dining:{bar:'#f97316',priceBg:'#ffedd5',priceColor:'#9a3412'},dessert:{bar:'#ec4899',priceBg:'#fce7f3',priceColor:'#9d174d'},bunkfood:{bar:'#f59e0b',priceBg:'#fef9c3',priceColor:'#854d0e'},other:{bar:'#a78bfa',priceBg:'#ede9fe',priceColor:'#7c3aed'}};
   let purchases=[], currentFilter='all', editMode=false;
+
+  // ── 코인 가격 자동 계산 공식 ────────────────────────────────────
+  // 공식: (칼로리÷5) + (지방×1.5) + (당류×2)
+  // 구운 것(grilled)은 최종 결과에 ×0.8 (체지방 덜 영향 → 20% 할인)
+  function calcCoinPrice(kcal, fat, sugar, cookType) {
+    const raw = (kcal / 5) + (fat * 1.5) + (sugar * 2);
+    const adjusted = cookType === 'grilled' ? raw * 0.8 : raw;
+    return Math.round(adjusted);  // 소수점 반올림
+  }
+  // 모달에서 값 입력할 때마다 가격 미리보기 자동 갱신
+  function updateCalcPrice() {
+    const kcal  = parseFloat(document.getElementById('m-kcal').value)  || 0;
+    const fat   = parseFloat(document.getElementById('m-fat').value)   || 0;
+    const sugar = parseFloat(document.getElementById('m-sugar').value) || 0;
+    const cookType = document.querySelector('input[name="cooktype"]:checked')?.value || 'none';
+    if (!kcal && !fat && !sugar) { document.getElementById('m-price-display').textContent = '—'; return; }
+    const price = calcCoinPrice(kcal, fat, sugar, cookType);
+    document.getElementById('m-price-display').textContent = `🪙 ${price}코인`;
+  }
 
   function renderFilterTabs(){const allCats=['all',...CATS.filter(c=>shopItems.some(i=>i.cat===c))];document.getElementById('filter-tabs').innerHTML=allCats.map(c=>`<div class="ftab ${currentFilter===c?'active':''}" onclick="filterShop('${c}')">${CAT_LABELS[c]||c}</div>`).join('');}
   function filterShop(cat){currentFilter=cat;renderFilterTabs();renderShop(cat);}
@@ -600,6 +638,8 @@
         <div class="s-name">${item.name}</div><div class="s-brand">${item.brand||''}</div>
         <div class="s-kcal" style="color:${item.kcal>=1100?'#ef4444':item.kcal>=700?'#f59e0b':'#16a34a'}">🔥 ${item.kcal}kcal</div>
         <div class="s-info">${item.sugar?`당류 ${item.sugar}g · 지방 ${item.fat}g`:''}</div>
+        ${item.cookType==='grilled'?`<div class="s-info" style="color:#16a34a;font-size:8.5px">🔥 구운 것 (−20% 할인)</div>`:''}
+        ${item.cookType==='fried'?`<div class="s-info" style="color:#9ca3af;font-size:8.5px">🍳 튀긴 것</div>`:''}
         <div class="s-warn">${warns.join(' ')}</div>
         ${editMode?`<div style="display:flex;align-items:center;gap:4px;justify-content:center"><button onclick="changePrice('${item.id}',-5);event.stopPropagation()" style="padding:2px 8px;border:1px solid #e5e7eb;border-radius:6px;background:white;cursor:pointer;font-size:12px">-5</button><div class="s-price" style="background:${item.priceBg};color:${item.priceColor}">🪙 ${item.price}</div><button onclick="changePrice('${item.id}',5);event.stopPropagation()" style="padding:2px 8px;border:1px solid #e5e7eb;border-radius:6px;background:white;cursor:pointer;font-size:12px">+5</button></div>`:`<div class="s-price" style="background:${ok?item.priceBg:'#f3f4f6'};color:${ok?item.priceColor:'#9ca3af'}">🪙 ${item.price}</div>`}
       </div>`;
@@ -635,8 +675,15 @@
   let selEmoji='🍗', selCat='other';
   function openModal(){
     selEmoji='🍗';selCat='other';
-    document.getElementById('m-name').value='';document.getElementById('m-brand').value='';
-    document.getElementById('m-kcal').value='';document.getElementById('m-price').value='';
+    // 모달 열릴 때 모든 입력 초기화
+    document.getElementById('m-name').value='';
+    document.getElementById('m-brand').value='';
+    document.getElementById('m-kcal').value='';
+    document.getElementById('m-fat').value='';
+    document.getElementById('m-sugar').value='';
+    document.getElementById('m-price-display').textContent='—';
+    // 조리방식 라디오 초기화 (해당없음 선택)
+    document.querySelectorAll('input[name="cooktype"]').forEach(r=>{r.checked=r.value==='none';});
     document.getElementById('emoji-grid-m').innerHTML=EMOJI_LIST.map(e=>`<span class="emoji-opt ${e===selEmoji?'selected':''}" onclick="selEmoji='${e}';document.querySelectorAll('.emoji-opt').forEach(x=>x.classList.toggle('selected',x.textContent==='${e}'))">${e}</span>`).join('');
     document.getElementById('cat-grid-m').innerHTML=CATS.map(c=>`<div class="cat-opt ${c===selCat?'selected':''}" onclick="selCat='${c}';document.querySelectorAll('.cat-opt').forEach(x=>x.classList.remove('selected'));this.classList.add('selected')">${CAT_LABELS[c]||c}</div>`).join('');
     document.getElementById('modal-overlay').style.display='flex';
@@ -644,11 +691,19 @@
   function closeModal(){document.getElementById('modal-overlay').style.display='none';}
   function closeModalOut(e){if(e.target===document.getElementById('modal-overlay'))closeModal();}
   function confirmAdd(){
-    const name=document.getElementById('m-name').value.trim(),brand=document.getElementById('m-brand').value.trim(),kcal=parseInt(document.getElementById('m-kcal').value)||0,price=parseInt(document.getElementById('m-price').value)||0;
-    if(!name){showToast('⚠️','이름을 입력해주세요','');closeModal();return;}
-    if(!price||price<5){showToast('⚠️','가격을 입력해주세요','최소 5코인');closeModal();return;}
+    const name=document.getElementById('m-name').value.trim();
+    const brand=document.getElementById('m-brand').value.trim();
+    const kcal=parseInt(document.getElementById('m-kcal').value)||0;
+    const fat=parseFloat(document.getElementById('m-fat').value)||0;
+    const sugar=parseFloat(document.getElementById('m-sugar').value)||0;
+    const cookType=document.querySelector('input[name="cooktype"]:checked')?.value||'none';
+    // 필수 입력값 검증
+    if(!name){showToast('⚠️','이름을 입력해주세요','');return;}
+    if(!kcal){showToast('⚠️','칼로리를 입력해주세요','');return;}
+    // 공식으로 코인 가격 자동 계산
+    const price=calcCoinPrice(kcal,fat,sugar,cookType);
     const cc=CAT_COLORS[selCat]||CAT_COLORS.other;
-    shopItems.push({id:'custom_'+Date.now(),emoji:selEmoji,name,brand,kcal,sugar:0,fat:0,sodium:0,price,cat:selCat,bar:cc.bar,priceBg:cc.priceBg,priceColor:cc.priceColor,custom:true});
+    shopItems.push({id:'custom_'+Date.now(),emoji:selEmoji,name,brand,kcal,sugar,fat,sodium:0,price,cat:selCat,cookType,bar:cc.bar,priceBg:cc.priceBg,priceColor:cc.priceColor,custom:true});
     saveWorkout();  // 커스텀 음식 추가 후 저장
     closeModal();renderFilterTabs();renderShop(currentFilter);renderGoals();
     showToast(selEmoji,`${name} 추가 완료!`,`🪙 ${price}코인 · ${kcal}kcal`);
@@ -741,7 +796,7 @@
     deletedDefaultIds = _w.deletedDefaultIds || [];
     // 상점 버전 체크 — 버전이 다르면 DEFAULT_SHOP으로 리셋 (가격 업데이트 반영)
     // 커스텀 아이템만 살리고 기본 아이템은 새 가격으로 교체
-    const SHOP_VERSION = 2; // 가격 바꿀 때마다 +1 올리면 자동 리셋됨
+    const SHOP_VERSION = 3; // 가격 바꿀 때마다 +1 올리면 자동 리셋됨 (3: 공식 기반 가격 전면 재조정 + 카테고리 개편)
     if (_w.shopItems && _w.shopVersion === SHOP_VERSION) {
       shopItems = _w.shopItems;
     } else {
